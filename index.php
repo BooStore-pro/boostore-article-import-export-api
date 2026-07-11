@@ -291,7 +291,7 @@ if ($articles !== null && !$fetchError) {
             'date_lastedit'=>$dateLastedit,'multilangid'=>$multilangid,'tags'=>$tags,
         ];
         foreach ($metaList as $k=>$v) $h .= '<meta name="'.htmlspecialchars($k).'" content="'.htmlspecialchars((string)$v).'">'."\n";
-        $h .= '</head>'."\n".'<body>'."\n".'<!-- РАЗДЕЛИТЕЛЬ СТАТЬЯ НИЖЕ -->'."\n".$description."\n".'</body>'."\n".'</html>'."\n";
+        $h .= '</head>'."\n".'<body>'."\n".'<!-- ARTICLE SEPARATOR BELOW -->'."\n".$description."\n".'</body>'."\n".'</html>'."\n";
         file_put_contents($filepath,$h); $saved++;
         $savedArticles[] = ['id'=>$id,'language'=>$language,'path'=>$relPath,'title'=>$title,'slug'=>$slug,
             'category'=>$categoryName,'planned'=>$planned,'status'=>$status,'descLen'=>mb_strlen($description),
@@ -670,7 +670,7 @@ endif;
 
 // === Step 3: Process selected files ===
 function extractAllMeta(string $html):array{$m=[];preg_match_all('/<meta\s+name=["\']([^"\']+)["\']\s+content=["\'](.*?)["\']\s*\/?>/is',$html,$p,PREG_SET_ORDER);if(empty($p)){preg_match_all('/<meta\s+content=["\'](.*?)["\']\s+name=["\']([^"\']+)["\']\s*\/?>/is',$html,$p,PREG_SET_ORDER);foreach($p as $x)$m[trim($x[2])]=trim($x[1]);}else{foreach($p as $x)$m[trim($x[1])]=trim($x[2]);}return $m;}
-function extractContent(string $html):string{$sep='<!-- РАЗДЕЛИТЕЛЬ СТАТЬЯ НИЖЕ -->';$p=mb_strpos($html,$sep);if($p===false){$sep='<-- РАЗДЕЛИТЕЛЬ СТАТЬЯ НИЖЕ --!>';$p=mb_strpos($html,$sep);}if($p!==false){$c=mb_substr($html,$p+mb_strlen($sep));$c=preg_replace('/<\/?body[^>]*>/i','',$c);$c=preg_replace('/<\/?html[^>]*>/i','',$c);return trim($c);}$sp=mb_strpos($html,'<style');if($sp!==false)return trim(mb_substr($html,$sp));preg_match('/<body[^>]*>(.*)<\/body>/is',$html,$bm);return trim($bm[1]??$html);}
+function extractContent(string $html):string{$sep='<!-- ARTICLE SEPARATOR BELOW -->';$p=mb_strpos($html,$sep);if($p===false){$sep='<-- РАЗДЕЛИТЕЛЬ СТАТЬЯ НИЖЕ --!>';$p=mb_strpos($html,$sep);}if($p!==false){$c=mb_substr($html,$p+mb_strlen($sep));$c=preg_replace('/<\/?body[^>]*>/i','',$c);$c=preg_replace('/<\/?html[^>]*>/i','',$c);return trim($c);}$sp=mb_strpos($html,'<style');if($sp!==false)return trim(mb_substr($html,$sp));preg_match('/<body[^>]*>(.*)<\/body>/is',$html,$bm);return trim($bm[1]??$html);}
 function dateToTimestamp(?string $d):?int{if(!$d)return null;if(ctype_digit($d))return(int)$d;try{return(new DateTimeImmutable($d))->getTimestamp();}catch(Exception$e){return null;}}
 
 // Load files from step 2 selection, or scan directory as fallback
