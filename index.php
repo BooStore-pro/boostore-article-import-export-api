@@ -258,8 +258,11 @@ if ($articles !== null && !$fetchError) {
         $catId = (int)($a['category_id'] ?? 0);
         if (!empty($ALLOWED_CATEGORIES) && !isset($ALLOWED_CATEGORIES[$catId])) { $skipped++; continue; }
         $categoryName = $ALLOWED_CATEGORIES[$catId];
-        $id = (int)($a['id'] ?? 0); $name = $a['name'] ?? $a['slug'] ?? 'article-'.$id;
-        $slug = $a['slug'] ?? $name; $language = $a['language'] ?? 'ru';
+$id = (int)($a['id'] ?? 0); $name = $a['name'] ?? $a['slug'] ?? 'article-'.$id;
+$slug = $a['slug'] ?? $name; $language = $a['language'] ?? 'ru';
+// Strip language suffix from name/slug if present (e.g., "slug-ua" → "slug")
+$name = preg_replace('/-(ua|pl|en|ru)$/i', '', $name);
+$slug = preg_replace('/-(ua|pl|en|ru)$/i', '', $slug);
         $title = $a['title'] ?? ''; $metaTitle = $a['meta_title'] ?? '';
         $metaDesc = $a['meta_description'] ?? ''; $metaKeywords = $a['meta_keywords'] ?? '';
         $description = $a['description'] ?? ''; $shortDesc = $a['short_description'] ?? '';
