@@ -37,6 +37,9 @@ if (!file_exists($configFile)) {
 \$DATE_OFFSET_BASE = '';
 \$DATE_OFFSET_DAYS = 1;
 \$OVERRIDE_PLANNED = '';
+\$EXPORT_ARTICLE_ID = false;   // передавать ID статьи
+\$EXPORT_CATEGORY_ID = false;  // передавать ID категории
+\$EXPORT_CATEGORY_NAME = true; // передавать имя категории (по умолчанию)
 
 // Сколько статей загружать за один запрос при экспорте (макс 2000)
 \$PER_PAGE = 200;
@@ -414,7 +417,7 @@ $gst=$allOk?'success':'error';
 <div style="text-align:center;margin:12px 0;"><a href="?" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_button">← НАЗАД</a></div>
 <script>
 var _lang='ru';try{_lang=localStorage.getItem('boostore_lang')||navigator.language.slice(0,2);localStorage.setItem('boostore_lang',_lang);}catch(e){}
-var _t={ru:{btn_get:'📥 НАЧАТЬ ИМПОРТ',btn_update:'📤 НАЧАТЬ ЭКСПОРТ',back_home:'На главную',back_button:'← НАЗАД',back_to_settings:'← Назад к настройкам',import_results_title:'▸ Импорт статей — получено с API',all_total:'Всего:',articles_count:'статей',loaded_count:'Загружено:',skipped_count:'Пропущено:',page_label:'Страница',from_label:'из',search_label:'Поиск:',fixed_label:'Исправлено:',go_to_page:'Перейти',prev_page:'← Назад (стр.',next_page:'Далее → (стр.',per_page_total:'по',per_page_by:'по',expand_all:'▸ РАСКРЫТЬ ВСЕ',collapse_all:'▾ СКРЫТЬ ВСЕ',auto_fix_title:'⚡ Авто-исправление по эталону',languages_count:'языка(ов)',discrepancy:'✗ РАСХОЖДЕНИЕ:',status_published_short:'1 (опубликовано)',status_hidden_short:'0 (скрыто)',chars_count:'символов',import_complete:'Импорт статей завершён',fetch_error:'✗ Ошибка',verification_warn:'⚠ Данные сохранены, но длина в ответе API не совпадает (возможны различия в форматировании)',lang_ru:'Русский',lang_en:'English',lang_ua:'Українська',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Белорусский (be)',ref_lang_en:'English (en)',ref_lang_ru:'Русский (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Polski (pl)',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей'},en:{btn_get:'📥 START IMPORT',btn_update:'📤 START EXPORT',back_home:'Home',back_button:'← BACK',back_to_settings:'← Back to settings',import_results_title:'▸ Articles fetched from API',all_total:'Total:',articles_count:'articles',loaded_count:'Loaded:',skipped_count:'Skipped:',page_label:'Page',from_label:'of',search_label:'Search:',fixed_label:'Fixed:',go_to_page:'Go',prev_page:'← Prev (pg.',next_page:'Next → (pg.',per_page_total:'per',per_page_by:'per',expand_all:'▸ EXPAND ALL',collapse_all:'▾ COLLAPSE ALL',auto_fix_title:'⚡ Auto-fix by reference',languages_count:'language(s)',discrepancy:'✗ DISCREPANCY:',status_published_short:'1 (published)',status_hidden_short:'0 (hidden)',chars_count:'chars',import_complete:'Import complete',fetch_error:'✗ Error',verification_warn:'⚠ Data saved, but length in API response differs (possible formatting differences)',lang_ru:'Russian',lang_en:'English',lang_ua:'Ukrainian',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Belarusian (be)',ref_lang_en:'English (en)',ref_lang_ru:'Russian (ru)',ref_lang_ua:'Ukrainian (ua)',ref_lang_pl:'Polish (pl)',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles'},ua:{btn_get:'📥 ПОЧАТИ ІМПОРТ',btn_update:'📤 ПОЧАТИ ЕКСПОРТ',back_home:'На головну',back_button:'← НАЗАД',back_to_settings:'← Назад до налаштувань',import_results_title:'▸ Статті отримано з API',all_total:'Всього:',articles_count:'статей',loaded_count:'Завантажено:',skipped_count:'Пропущено:',page_label:'Сторінка',from_label:'з',search_label:'Пошук:',fixed_label:'Виправлено:',go_to_page:'Перейти',prev_page:'← Назад (стор.',next_page:'Далі → (стор.',per_page_total:'по',per_page_by:'по',expand_all:'▸ РОЗГОРНУТИ ВСІ',collapse_all:'▾ ЗГОРНУТИ ВСІ',auto_fix_title:'⚡ Авто-виправлення за еталоном',languages_count:'мова(и)',discrepancy:'✗ РОЗБІЖНІСТЬ:',status_published_short:'1 (опубліковано)',status_hidden_short:'0 (приховано)',chars_count:'символів',import_complete:'Імпорт статей завершено',fetch_error:'✗ Помилка',verification_warn:'⚠ Дані збережено, але довжина у відповіді API не збігається (можливі відмінності у форматуванні)',lang_ru:'Російська',lang_en:'Англійська',lang_ua:'Українська',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Білоруська (be)',ref_lang_en:'Англійська (en)',ref_lang_ru:'Російська (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Польська (pl)',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей'}};
+var _t={ru:{btn_get:'📥 НАЧАТЬ ИМПОРТ',btn_update:'📤 НАЧАТЬ ЭКСПОРТ',back_home:'На главную',back_button:'← НАЗАД',back_to_settings:'← Назад к настройкам',import_results_title:'▸ Импорт статей — получено с API',all_total:'Всего:',articles_count:'статей',loaded_count:'Загружено:',skipped_count:'Пропущено:',page_label:'Страница',from_label:'из',search_label:'Поиск:',fixed_label:'Исправлено:',go_to_page:'Перейти',prev_page:'← Назад (стр.',next_page:'Далее → (стр.',per_page_total:'по',per_page_by:'по',expand_all:'▸ РАСКРЫТЬ ВСЕ',collapse_all:'▾ СКРЫТЬ ВСЕ',auto_fix_title:'⚡ Авто-исправление по эталону',languages_count:'языка(ов)',discrepancy:'✗ РАСХОЖДЕНИЕ:',status_published_short:'1 (опубликовано)',status_hidden_short:'0 (скрыто)',chars_count:'символов',import_complete:'Импорт статей завершён',fetch_error:'✗ Ошибка',verification_warn:'✓ Данные сохранены успешно',lang_ru:'Русский',lang_en:'English',lang_ua:'Українська',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Белорусский (be)',ref_lang_en:'English (en)',ref_lang_ru:'Русский (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Polski (pl)',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей'},en:{btn_get:'📥 START IMPORT',btn_update:'📤 START EXPORT',back_home:'Home',back_button:'← BACK',back_to_settings:'← Back to settings',import_results_title:'▸ Articles fetched from API',all_total:'Total:',articles_count:'articles',loaded_count:'Loaded:',skipped_count:'Skipped:',page_label:'Page',from_label:'of',search_label:'Search:',fixed_label:'Fixed:',go_to_page:'Go',prev_page:'← Prev (pg.',next_page:'Next → (pg.',per_page_total:'per',per_page_by:'per',expand_all:'▸ EXPAND ALL',collapse_all:'▾ COLLAPSE ALL',auto_fix_title:'⚡ Auto-fix by reference',languages_count:'language(s)',discrepancy:'✗ DISCREPANCY:',status_published_short:'1 (published)',status_hidden_short:'0 (hidden)',chars_count:'chars',import_complete:'Import complete',fetch_error:'✗ Error',verification_warn:'⚠ Data saved, but length in API response differs (possible formatting differences)',lang_ru:'Russian',lang_en:'English',lang_ua:'Ukrainian',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Belarusian (be)',ref_lang_en:'English (en)',ref_lang_ru:'Russian (ru)',ref_lang_ua:'Ukrainian (ua)',ref_lang_pl:'Polish (pl)',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles'},ua:{btn_get:'📥 ПОЧАТИ ІМПОРТ',btn_update:'📤 ПОЧАТИ ЕКСПОРТ',back_home:'На головну',back_button:'← НАЗАД',back_to_settings:'← Назад до налаштувань',import_results_title:'▸ Статті отримано з API',all_total:'Всього:',articles_count:'статей',loaded_count:'Завантажено:',skipped_count:'Пропущено:',page_label:'Сторінка',from_label:'з',search_label:'Пошук:',fixed_label:'Виправлено:',go_to_page:'Перейти',prev_page:'← Назад (стор.',next_page:'Далі → (стор.',per_page_total:'по',per_page_by:'по',expand_all:'▸ РОЗГОРНУТИ ВСІ',collapse_all:'▾ ЗГОРНУТИ ВСІ',auto_fix_title:'⚡ Авто-виправлення за еталоном',languages_count:'мова(и)',discrepancy:'✗ РОЗБІЖНІСТЬ:',status_published_short:'1 (опубліковано)',status_hidden_short:'0 (приховано)',chars_count:'символів',import_complete:'Імпорт статей завершено',fetch_error:'✗ Помилка',verification_warn:'⚠ Дані збережено, але довжина у відповіді API не збігається (можливі відмінності у форматуванні)',lang_ru:'Російська',lang_en:'Англійська',lang_ua:'Українська',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Білоруська (be)',ref_lang_en:'Англійська (en)',ref_lang_ru:'Російська (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Польська (pl)',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей'}};
 function applyLang(l){try{localStorage.setItem('boostore_lang',l);}catch(e){}_lang=l;document.querySelectorAll('[data-i18n]').forEach(function(el){var key=el.getAttribute('data-i18n');if(_t[l]&&_t[l][key]!==undefined)el.innerHTML=_t[l][key];});document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){var key=el.getAttribute('data-i18n-placeholder');if(_t[l]&&_t[l][key]!==undefined)el.placeholder=_t[l][key];});}
 if(_lang!='ru'){document.addEventListener('DOMContentLoaded',function(){applyLang(_lang);});}
 document.addEventListener('DOMContentLoaded',function(){var ls=document.getElementById('lang_switcher');if(ls){ls.value=_lang;ls.addEventListener('change',function(){applyLang(this.value);});}});
@@ -430,11 +433,23 @@ endif;
 // _update-articles.php — ИМПОРТ (отправка статей на API)
 // ===================================================================
 if ($action === 'update'):
-$overridePlanned = $OVERRIDE_PLANNED !== '' ? (int)$OVERRIDE_PLANNED : null;
+// GET overrides for per-export parameters (take from GET, fallback to config)
+$expDateMode   = $_GET['date_mode'] ?? $DATE_MODE;
+$expDateFixed  = $_GET['date_fixed'] ?? $DATE_FIXED;
+$expDateOffsetBase = $_GET['date_offset_base'] ?? $DATE_OFFSET_BASE;
+$expDateOffsetDays = isset($_GET['date_offset_days']) ? (int)$_GET['date_offset_days'] : (int)($DATE_OFFSET_DAYS ?? 1);
+$expOverridePlanned = isset($_GET['override_planned']) ? ($_GET['override_planned'] !== '' ? (int)$_GET['override_planned'] : null) : ($OVERRIDE_PLANNED !== '' ? (int)$OVERRIDE_PLANNED : null);
+$expStatusMode = $_GET['status_mode'] ?? $STATUS_MODE;
+$expStatusOverride = isset($_GET['status_override']) ? (int)$_GET['status_override'] : (int)($STATUS_OVERRIDE ?? 1);
+$expArticleId = !empty($_GET['export_article_id']) && $_GET['export_article_id'] !== '0';
+$expCategoryId = !empty($_GET['export_category_id']) && $_GET['export_category_id'] !== '0';
+$expCategoryName = empty($_GET['export_category_name']) || $_GET['export_category_name'] !== '0'; // по умолчанию true
+
+$overridePlanned = $expOverridePlanned;
 // Pre-scan for offset mode: build slug→date map
 $slugDateMap = [];
-if ($DATE_MODE === 'offset' && $DATE_OFFSET_BASE !== '' && $DATE_OFFSET_DAYS > 0) {
-    $baseTs = dateToTimestamp($DATE_OFFSET_BASE);
+if ($expDateMode === 'offset' && $expDateOffsetBase !== '' && $expDateOffsetDays > 0) {
+    $baseTs = dateToTimestamp($expDateOffsetBase);
     if ($baseTs) {
         $blogDir2 = __DIR__.DIRECTORY_SEPARATOR.'blog';
         if (is_dir($blogDir2)) {
@@ -450,7 +465,7 @@ if ($DATE_MODE === 'offset' && $DATE_OFFSET_BASE !== '' && $DATE_OFFSET_DAYS > 0
                     $s = trim($sm[1] ?? '');
                     if ($s === '' || isset($seen[$s])) continue;
                     $seen[$s] = true;
-                    $slugDateMap[$s] = $baseTs + $idx * ((int)$DATE_OFFSET_DAYS) * 86400;
+                    $slugDateMap[$s] = $baseTs + $idx * $expDateOffsetDays * 86400;
                     $idx++;
                 }
             }
@@ -503,7 +518,7 @@ $searchFilter = array_values($searchFilter);
 if (!isset($_GET['confirm'])): ?>
 <script>
 var _lang='ru';try{_lang=localStorage.getItem('boostore_lang')||navigator.language.slice(0,2);localStorage.setItem('boostore_lang',_lang);}catch(e){}
-var _t={ru:{filter_name:'Фильтр по имени (slug)',batch_label:'Отправить за 1 раз',lang_label:'Язык',step_forward:'➡ ДАЛЕЕ',back_home:'← На главную',dry_run_label:'Dry run',plaque_export:'▸ <strong>Настройки экспорта</strong> — отправка статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запросы не отправляются',btn_more:'+ ЕЩЕ',btn_more_multi:'📋 ЕЩЕ НЕСКОЛЬКО',prompt_values:'Введите значения (каждая строка — отдельное поле):',search_placeholder:'часть имени, например: shopify',all_languages:'все'},en:{filter_name:'Filter by name (slug)',batch_label:'Send per run',lang_label:'Language',step_forward:'➡ NEXT',back_home:'← Home',dry_run_label:'Dry run',plaque_export:'▸ <strong>Export Settings</strong> — sending articles to Boostore.pro',dryrun_warn:'⚡ DRY RUN — no API calls sent',btn_more:'+ MORE',btn_more_multi:'📋 ADD MULTIPLE',prompt_values:'Enter values (each line is a separate field):',search_placeholder:'part of name, e.g.: shopify',all_languages:'all'},ua:{filter_name:'Фільтр за іменем (slug)',batch_label:'Відправити за 1 раз',lang_label:'Мова',step_forward:'➡ ДАЛІ',back_home:'← На головну',dry_run_label:'Dry run',plaque_export:'▸ <strong>Налаштування експорту</strong> — відправлення статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запити не надсилаються',btn_more:'+ ЩЕ',btn_more_multi:'📋 ДОДАТИ КІЛЬКА',prompt_values:'Введіть значення (кожен рядок — окреме поле):',search_placeholder:'частина імені, наприклад: shopify',all_languages:'всі'}};
+var _t={ru:{filter_name:'Фильтр по имени (slug)',batch_label:'Отправить за 1 раз',lang_label:'Язык',step_forward:'➡ ДАЛЕЕ',back_home:'← На главную',dry_run_label:'Dry run',plaque_export:'▸ <strong>Настройки экспорта</strong> — отправка статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запросы не отправляются',btn_more:'+ ЕЩЕ',btn_more_multi:'📋 ЕЩЕ НЕСКОЛЬКО',prompt_values:'Введите значения (каждая строка — отдельное поле):',search_placeholder:'часть имени, например: shopify',all_languages:'все',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',date_fixed_label:'📅 Фиксированная дата',date_offset_label:'📅 Базовая дата',date_offset_days:'+ дней на статью',override_planned:'📅 Переопределить planned',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_label:'🔒 Статус доступа (status)',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей',status_value_label:'Значение статуса',status_published:'1 — опубликовано (доступно)',status_hidden:'0 — скрыто (недоступно)'},en:{filter_name:'Filter by name (slug)',batch_label:'Send per run',lang_label:'Language',step_forward:'➡ NEXT',back_home:'← Home',dry_run_label:'Dry run',plaque_export:'▸ <strong>Export Settings</strong> — sending articles to Boostore.pro',dryrun_warn:'⚡ DRY RUN — no API calls sent',btn_more:'+ MORE',btn_more_multi:'📋 ADD MULTIPLE',prompt_values:'Enter values (each line is a separate field):',search_placeholder:'part of name, e.g.: shopify',all_languages:'all',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',date_fixed_label:'📅 Fixed Date',date_offset_label:'📅 Base Date',date_offset_days:'+ days per article',override_planned:'📅 Override planned',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_label:'🔒 Access Status (status)',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles',status_value_label:'Status Value',status_published:'1 — published (public)',status_hidden:'0 — hidden (private)'},ua:{filter_name:'Фільтр за іменем (slug)',batch_label:'Відправити за 1 раз',lang_label:'Мова',step_forward:'➡ ДАЛІ',back_home:'← На головну',dry_run_label:'Dry run',plaque_export:'▸ <strong>Налаштування експорту</strong> — відправлення статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запити не надсилаються',btn_more:'+ ЩЕ',btn_more_multi:'📋 ДОДАТИ КІЛЬКА',prompt_values:'Введіть значення (кожен рядок — окреме поле):',search_placeholder:'частина імені, наприклад: shopify',all_languages:'всі',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',date_fixed_label:'📅 Фіксована дата',date_offset_label:'📅 Базова дата',date_offset_days:'+ днів на статтю',override_planned:'📅 Перевизначити planned',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_label:'🔒 Статус доступу (status)',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей',status_value_label:'Значення статусу',status_published:'1 — опубліковано (доступно)',status_hidden:'0 — приховано (недоступно)'}};
 function applyLang(l){try{localStorage.setItem('boostore_lang',l);}catch(e){}_lang=l;document.querySelectorAll('[data-i18n]').forEach(function(el){var key=el.getAttribute('data-i18n');if(_t[l]&&_t[l][key]!==undefined)el.innerHTML=_t[l][key];});document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){var key=el.getAttribute('data-i18n-placeholder');if(_t[l]&&_t[l][key]!==undefined)el.placeholder=_t[l][key];});}
 if(_lang!='ru'){document.addEventListener('DOMContentLoaded',function(){applyLang(_lang);});}
 document.addEventListener('DOMContentLoaded',function(){var ls=document.getElementById('lang_switcher');if(ls){ls.value=_lang;ls.addEventListener('change',function(){applyLang(this.value);});}});
@@ -541,12 +556,88 @@ document.addEventListener('DOMContentLoaded',function(){var ls=document.getEleme
         <option value="be"<?=($_GET['lang']??'')==='be'?' selected':''?> data-i18n="lang_be">Беларуская</option>
       </select>
     </div>
-    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#888;cursor:pointer;" data-i18n="dry_run_label"><input type="checkbox" name="dry-run" value="1"<?=isset($_GET['dry-run'])?' checked':''?>> Dry run</label>
     <div style="margin-left:auto;">
-      <button type="submit" style="padding:10px 24px;background:#00d4ff;color:#1a1a2e;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;" data-i18n="step_forward">➡ ДАЛЕЕ</button>
-      <a href="?" style="padding:7px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#888;cursor:pointer;margin-right:8px;" data-i18n="dry_run_label"><input type="checkbox" name="dry-run" value="1"<?=isset($_GET['dry-run'])?' checked':''?>> Dry run</label>
     </div>
   </div>
+  <hr style="border-color:#0f3460;margin:4px 0;">
+  <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="date_mode_label">📅 Режим даты публикации</label>
+      <select name="date_mode" id="exp_date_mode" onchange="toggleExpDateFields()" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;">
+        <option value=""<?=($_GET['date_mode']??$DATE_MODE)===''?' selected':''?> data-i18n="date_mode_meta">Из мета-данных (дата из каждой статьи)</option>
+        <option value="fixed"<?=($_GET['date_mode']??$DATE_MODE)==='fixed'?' selected':''?> data-i18n="date_mode_fixed">Одна дата для всех статей</option>
+        <option value="offset"<?=($_GET['date_mode']??$DATE_MODE)==='offset'?' selected':''?> data-i18n="date_mode_offset">Смещение дат (+N дней на статью)</option>
+      </select>
+    </div>
+    <div id="exp_date_fixed_block" style="display:<?=(($_GET['date_mode']??$DATE_MODE)==='fixed')?'block':'none'?>;">
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="date_fixed_label">📅 Фиксированная дата</label>
+      <input type="date" name="date_fixed" value="<?=htmlspecialchars($_GET['date_fixed']??$DATE_FIXED?:date('Y-m-d'))?>" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;">
+    </div>
+    <div id="exp_date_offset_block" style="display:<?=(($_GET['date_mode']??$DATE_MODE)==='offset')?'block':'none'?>;">
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="date_offset_label">📅 Базовая дата</label>
+      <input type="date" name="date_offset_base" value="<?=htmlspecialchars($_GET['date_offset_base']??$DATE_OFFSET_BASE?:date('Y-m-d'))?>" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;width:140px;">
+    </div>
+    <div id="exp_date_offset_days_block" style="display:<?=(($_GET['date_mode']??$DATE_MODE)==='offset')?'block':'none'?>;">
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="date_offset_days">+ дней на статью</label>
+      <input type="number" name="date_offset_days" value="<?=(int)($_GET['date_offset_days']??$DATE_OFFSET_DAYS??1)?>" min="0" max="365" style="width:70px;padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;">
+    </div>
+    <div>
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="override_planned">📅 Переопределить planned</label>
+      <select name="override_planned" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;">
+        <option value=""<?=($_GET['override_planned']??$OVERRIDE_PLANNED)===''?' selected':''?> data-i18n="planned_notset">— не указано (из мета-данных)</option>
+        <option value="0"<?=($_GET['override_planned']??$OVERRIDE_PLANNED)==='0'?' selected':''?> data-i18n="planned_0">0 — не отложенная</option>
+        <option value="1"<?=($_GET['override_planned']??$OVERRIDE_PLANNED)==='1'?' selected':''?> data-i18n="planned_1">1 — отложенная публикация</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="status_mode_label">🔒 Статус доступа (status)</label>
+      <select name="status_mode" id="exp_status_mode" onchange="toggleExpStatusFields()" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;">
+        <option value=""<?=($_GET['status_mode']??$STATUS_MODE)===''?' selected':''?> data-i18n="status_mode_meta">Из мета-данных (статус из каждой статьи)</option>
+        <option value="override"<?=($_GET['status_mode']??$STATUS_MODE)==='override'?' selected':''?> data-i18n="status_mode_override">Переопределить для всех статей</option>
+      </select>
+    </div>
+    <div id="exp_status_override_block" style="display:<?=(($_GET['status_mode']??$STATUS_MODE)==='override')?'block':'none'?>;">
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="status_value_label">Значение статуса</label>
+      <select name="status_override" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;">
+        <option value="1"<?=(($_GET['status_override']??$STATUS_OVERRIDE)==1)?' selected':''?> data-i18n="status_published">1 — опубликовано (доступно)</option>
+        <option value="0"<?=(($_GET['status_override']??$STATUS_OVERRIDE)===0)?' selected':''?> data-i18n="status_hidden">0 — скрыто (недоступно)</option>
+      </select>
+    </div>
+  </div>
+  <hr style="border-color:#0f3460;margin:4px 0;">
+  <div>
+    <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="export_fields_label">📋 Поля для экспорта</label>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="export_article_id" value="0">
+        <input type="checkbox" name="export_article_id" value="1"<?=!empty($_GET['export_article_id'])?' checked':''?> data-i18n="export_article_id"> ID статьи
+      </label>
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="export_category_id" value="0">
+        <input type="checkbox" name="export_category_id" value="1"<?=!empty($_GET['export_category_id'])?' checked':''?> data-i18n="export_category_id"> ID категории
+      </label>
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="export_category_name" value="0">
+        <input type="checkbox" name="export_category_name" value="1"<?=(!isset($_GET['export_category_name'])||$_GET['export_category_name']!=='0')?' checked':''?> data-i18n="export_category_name"> Имя категории
+      </label>
+    </div>
+  </div>
+  <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+    <button type="submit" style="padding:10px 24px;background:#00d4ff;color:#1a1a2e;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;" data-i18n="step_forward">➡ ДАЛЕЕ</button>
+    <a href="?" style="padding:7px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a>
+  </div>
+  <script>
+  function toggleExpDateFields(){
+    var m=document.getElementById('exp_date_mode').value;
+    document.getElementById('exp_date_fixed_block').style.display=(m==='fixed'?'block':'none');
+    document.getElementById('exp_date_offset_block').style.display=(m==='offset'?'block':'none');
+    document.getElementById('exp_date_offset_days_block').style.display=(m==='offset'?'block':'none');
+  }
+  function toggleExpStatusFields(){
+    document.getElementById('exp_status_override_block').style.display=(document.getElementById('exp_status_mode').value==='override'?'block':'none');
+  }
+  </script>
 </form>
 </div>
 <?php exit; endif;
@@ -637,6 +728,15 @@ h1{font-size:22px;color:#00d4ff;margin-bottom:5px}.meta-info{color:#888;font-siz
   <input type="hidden" name="step" value="3">
   <input type="hidden" name="batch" value="<?=(int)($_GET['batch']??$SEND_BATCH_LIMIT??200)?>">
   <?php if (isset($_GET['dry-run'])): ?><input type="hidden" name="dry-run" value="1"><?php endif; ?>
+  <?php if (($_GET['date_mode']??$DATE_MODE)!==''): ?><input type="hidden" name="date_mode" value="<?=htmlspecialchars($_GET['date_mode']??$DATE_MODE)?>"><?php endif; ?>
+  <?php if (($_GET['date_mode']??$DATE_MODE)==='fixed'): ?><input type="hidden" name="date_fixed" value="<?=htmlspecialchars($_GET['date_fixed']??$DATE_FIXED??'')?>"><?php endif; ?>
+  <?php if (($_GET['date_mode']??$DATE_MODE)==='offset'): ?><input type="hidden" name="date_offset_base" value="<?=htmlspecialchars($_GET['date_offset_base']??$DATE_OFFSET_BASE??'')?>"><input type="hidden" name="date_offset_days" value="<?=(int)($_GET['date_offset_days']??$DATE_OFFSET_DAYS??1)?>"><?php endif; ?>
+  <?php if (($_GET['override_planned']??$OVERRIDE_PLANNED)!==''): ?><input type="hidden" name="override_planned" value="<?=htmlspecialchars($_GET['override_planned']??$OVERRIDE_PLANNED)?>"><?php endif; ?>
+  <?php if (($_GET['status_mode']??$STATUS_MODE)==='override'): ?><input type="hidden" name="status_mode" value="override"><input type="hidden" name="status_override" value="<?=(int)($_GET['status_override']??$STATUS_OVERRIDE??1)?>"><?php endif; ?>
+  <?php /* forward export field checkboxes */ ?>
+  <input type="hidden" name="export_article_id" value="<?=(int)(!empty($_GET['export_article_id'])?$_GET['export_article_id']:0)?>">
+  <input type="hidden" name="export_category_id" value="<?=(int)(!empty($_GET['export_category_id'])?$_GET['export_category_id']:0)?>">
+  <input type="hidden" name="export_category_name" value="<?=(int)(empty($_GET['export_category_name'])?1:$_GET['export_category_name'])?>">
   <div class="toolbar">
     <button type="button" class="btn btn-sm select-all" onclick="document.querySelectorAll('.file-chk').forEach(function(c){c.checked=true;})" data-i18n="select_all">☑ ВЫДЕЛИТЬ ВСЕ</button>
     <button type="button" class="btn btn-sm deselect-all" onclick="document.querySelectorAll('.file-chk').forEach(function(c){c.checked=false;})" data-i18n="deselect_all">☐ СНЯТЬ ВСЕ</button>
@@ -702,6 +802,7 @@ if (!isset($_GET['files']) && !empty($searchFilter)) {
 }
 // Apply batch limit
 $htmlFiles = array_slice($htmlFiles, 0, $batchLimit);
+$batchPayloads = []; $batchArticles = [];
 foreach($htmlFiles as $htmlFile):
 $relPath=str_replace(__DIR__.DIRECTORY_SEPARATOR,'',$htmlFile);$articleIdx++;
 $html=file_get_contents($htmlFile);$meta=extractAllMeta($html);
@@ -715,6 +816,7 @@ $comments=(int)($meta['comments']??0);$settingsRating=(int)($meta['settings_rati
 $password=$meta['password']??'';$showTree=(int)($meta['show_tree']??0);$showInlist=(int)($meta['show_inlist']??0);
 $showPeriod=(int)($meta['show_period']??0);$schema=(int)($meta['schema']??6);$planned=(int)($meta['planned']??0);
 $rating=(int)($meta['rating']??0);$datestampStr=$meta['datestamp']??'';$tags=$meta['tags']??'';
+$articleId=(int)($meta['id']??0);
 $multilangid=$meta['multilangid']??'';
 $categoryAllowed=empty($ALLOWED_CATEGORIES);
 if(!$categoryAllowed&&$catId>0&&isset($ALLOWED_CATEGORIES[$catId])){$categoryAllowed=true;$categoryName=$ALLOWED_CATEGORIES[$catId];}
@@ -723,66 +825,167 @@ if(!$categoryAllowed):$skippedCount++;?>
 <div class="article"><div class="article-header"><span><span class="num">#<?=$articleIdx?></span> <span class="file"><?=htmlspecialchars($relPath)?></span></span><span class="date"><?=date('Y-m-d H:i:s')?></span></div>
 <div class="article-body"><div class="result-skip"><span style="color:#888;" data-i18n="skipped_category">⏭ Пропущен — категория не входит в ALLOWED_CATEGORIES</span><?php if($catId):?><br><span class="inline-code">category_id: <?=$catId?></span><?php endif;?><?php if($categoryName):?><br><span class="inline-code">category_name: <?=htmlspecialchars($categoryName)?></span><?php endif;?></div></div></div>
 <?php continue; endif;
-if($status===''||$status===null){$status=$STATUS_MODE==='override'?$STATUS_OVERRIDE:1;}else{$status=(int)$status;}
+if($status===''||$status===null){$status=$expStatusMode==='override'?$expStatusOverride:1;}else{$status=(int)$status;}
 // Date calculation based on mode
-if ($DATE_MODE === 'fixed' && $DATE_FIXED !== '') {
-    $datestamp = dateToTimestamp($DATE_FIXED);
-} elseif ($DATE_MODE === 'offset' && isset($slugDateMap[$slug])) {
+if ($expDateMode === 'fixed' && $expDateFixed !== '') {
+    $datestamp = dateToTimestamp($expDateFixed);
+} elseif ($expDateMode === 'offset' && isset($slugDateMap[$slug])) {
     $datestamp = $slugDateMap[$slug];
 } else {
     $datestamp = dateToTimestamp($datestampStr);
 }
 if($overridePlanned!==null)$planned=(int)$overridePlanned;
 $description=extractContent($html);
-$payload=['title'=>$title,'meta_title'=>$metaTitle,'meta_description'=>$metaDesc,'meta_keywords'=>$metaKeywords,'tags'=>$tags,'description'=>$description,'short_description'=>$shortDesc,'name'=>$slug,'slug'=>$slug,'slug_search'=>$slug,'update_exists'=>true,'language'=>$language,'category'=>$categoryName,'status'=>$status,'planned'=>$planned,'datestamp'=>$datestamp,'schema'=>$schema,'priority'=>$priority,'subdomain'=>$subdomain,'view'=>$view,'settings_comments'=>$settingsComments,'settings_tags'=>$settingsTags,'comments'=>$comments,'settings_rating'=>$settingsRating,'password'=>$password,'show_tree'=>$showTree,'show_inlist'=>$showInlist,'show_period'=>$showPeriod,'rating'=>$rating];
+$payload=['title'=>$title,'meta_title'=>$metaTitle,'meta_description'=>$metaDesc,'meta_keywords'=>$metaKeywords,'tags'=>$tags,'description'=>$description,'short_description'=>$shortDesc,'name'=>$slug,'slug'=>$slug,'slug_search'=>$slug,'update_exists'=>true,'language'=>$language,'status'=>$status,'planned'=>$planned,'datestamp'=>$datestamp,'schema'=>$schema,'priority'=>$priority,'subdomain'=>$subdomain,'view'=>$view,'settings_comments'=>$settingsComments,'settings_tags'=>$settingsTags,'comments'=>$comments,'settings_rating'=>$settingsRating,'password'=>$password,'show_tree'=>$showTree,'show_inlist'=>$showInlist,'show_period'=>$showPeriod,'rating'=>$rating];
+if($expArticleId && $articleId>0)$payload['id']=$articleId;
+if($expCategoryId && $catId>0)$payload['category_id']=$catId;
+if($expCategoryName)$payload['category']='sitecreate_'.$language;
 if($multilangid)$payload['multilangid']=$multilangid;
 $jsonPayload=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);$descSize=mb_strlen($description);$metaCount=count($meta);
+// Store for batch send
+$batchPayloads[] = $payload;
+$batchArticles[] = ['slug'=>$slug, 'relPath'=>$relPath, 'multilangid'=>$multilangid, 'idx'=>$articleIdx];
 ?>
 <div class="article"><div class="article-header"><span><span class="num">#<?=$articleIdx?></span> <span class="file"><?=htmlspecialchars($relPath)?></span></span><span class="date"><?=date('Y-m-d H:i:s')?></span></div>
 <div class="article-body">
-<details open><summary><span data-i18n="metadata_title">📋 Метаданные</span> (<?=$metaCount?> <span data-i18n="fields_count">полей</span>)</summary><div class="meta-grid">
+<details><summary><span data-i18n="metadata_title">📋 Метаданные</span> (<?=$metaCount?> <span data-i18n="fields_count">полей</span>)</summary><div class="meta-grid">
 <?php foreach($meta as $mk=>$mv):?><span class="key"><?=htmlspecialchars($mk)?>:</span><span class="val"><?=$mv!==''&&$mv!==null?htmlspecialchars((string)$mv):'<span class="na">—</span>'?></span><?php endforeach;?>
 <span class="key" data-i18n="desc_size_label">размер description:</span><span class="val"><?=$descSize?> <span data-i18n="chars_count">символов</span></span>
 </div></details>
 <details><summary data-i18n="payload_title">📦 Отправляемые данные (payload)</summary><div class="resp-block"><?=htmlspecialchars($jsonPayload)?></div></details>
 <details><summary data-i18n="description_title">📄 Description (полный текст)</summary><textarea readonly><?=htmlspecialchars($description)?></textarea></details>
-<?php if($dryRun):?><div class="result-warn" data-i18n="dryrun_skip">⚡ DRY RUN — запрос не отправлен</div><?php continue; endif;
-$ch=curl_init($API_URL);
-curl_setopt_array($ch,[CURLOPT_CUSTOMREQUEST=>'POST',CURLOPT_POSTFIELDS=>$jsonPayload,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>["Authorization: Bearer ".$AUTH_KEY,"Content-Type: application/json"],CURLOPT_HEADER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_ENCODING=>'',CURLOPT_CONNECTTIMEOUT=>30,CURLOPT_TIMEOUT=>120,CURLOPT_SSL_VERIFYHOST=>0,CURLOPT_SSL_VERIFYPEER=>0]);
-$responseFull=curl_exec($ch);$httpCode=curl_getinfo($ch,CURLINFO_HTTP_CODE);$curlError=curl_error($ch);$headerSize=curl_getinfo($ch,CURLINFO_HEADER_SIZE);curl_close($ch);
-$responseBody='';$respData=null;if($responseFull!==false&&$responseFull!==''){$responseBody=substr((string)$responseFull,$headerSize);$respData=json_decode($responseBody,true);}
-if($curlError):?>
-<div class="result-fail"><span class="error" data-i18n="curl_error">✗ cURL Ошибка</span><br><span><?=htmlspecialchars($curlError)?></span></div>
-<?php $errors++;
-elseif($httpCode>=200&&$httpCode<300&&is_array($respData)&&($respData['code']??'')==='success'):
-$art=$respData['articles']??[];$action2=isset($art['added'])?'создана':'обновлена';$respId=$art['id']??'?';$skipFields=$art['skipped']??[];$glErrors=$art['errors_global']??[];$fieldErrors=$art['errors']??[];?>
-<div class="result-ok"><span class="success" data-i18n="<?=isset($art['added'])?'article_created':'article_updated'?>">✓ Статья <?=$action2?> (ID: <?=$respId?>)</span><?php if($multilangid):?><br><span class="warning">🔗 multilangid: <?=htmlspecialchars($multilangid)?></span><?php endif;?>
-<?php if(!empty($skipFields)):?><br><span class="warning" data-i18n="skipped_fields">⚠ Пропущенные поля:</span><div style="font-size:11px;color:#888;margin-top:2px;"><?php foreach($skipFields as $fk=>$fv):?><div><?=htmlspecialchars($fk)?>: <?=htmlspecialchars(is_array($fv)?json_encode($fv,JSON_UNESCAPED_UNICODE):$fv)?></div><?php endforeach;?></div><?php endif;?>
-<?php if(!empty($glErrors)):?><br><span class="error" data-i18n="api_errors">✩ Ошибки API:</span><div style="font-size:11px;color:#f44336;margin-top:2px;"><?php foreach($glErrors as $ge):?><div>• <?=htmlspecialchars($ge)?></div><?php endforeach;?></div><?php endif;?>
-<?php if(!empty($fieldErrors)):?><br><span class="warning" data-i18n="field_errors">⚠ Ошибки полей:</span><div style="font-size:11px;color:#ff9800;margin-top:2px;"><?php foreach($fieldErrors as $fe):?><div>• <?=htmlspecialchars(is_array($fe)?json_encode($fe,JSON_UNESCAPED_UNICODE):$fe)?></div><?php endforeach;?></div><?php endif;?>
-</div>
-<details><summary data-i18n="api_response">📬 Ответ API</summary><div class="resp-block"><?=htmlspecialchars(json_encode($respData,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES))?></div></details>
-<?php $getUrl=$API_URL.'/'.$slug;$chGet=curl_init($getUrl);curl_setopt_array($chGet,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>["Authorization: Bearer ".$AUTH_KEY],CURLOPT_HEADER=>false,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_ENCODING=>'',CURLOPT_CONNECTTIMEOUT=>15,CURLOPT_TIMEOUT=>30,CURLOPT_SSL_VERIFYHOST=>0,CURLOPT_SSL_VERIFYPEER=>0]);$getResponse=curl_exec($chGet);curl_close($chGet);$getData=json_decode($getResponse,true);$savedDesc=$getData['articles']['description']??'';$sentLength=mb_strlen($description);$gotLength=mb_strlen($savedDesc);?>
-<details open><summary data-i18n="verification_title">🔍 Верификация</summary><div class="meta-grid"><span class="key" data-i18n="sent_chars">отправлено символов:</span><span class="val"><?=$sentLength?></span><span class="key" data-i18n="saved_chars">сохранено символов:</span><span class="val"><?=$gotLength?></span>
-<span class="key" data-i18n="status_label">статус:</span><span class="val"><?php if($gotLength>0):?><span class="success"><span data-i18n="article_saved">✓ Статья сохранена</span> (ID: <?=$respId?>)</span><?php else:?><span class="warning" data-i18n="verification_warn">⚠ Данные сохранены, но длина в ответе API не совпадает (возможны различия в форматировании)</span><?php endif;?></span>
-</div>
-<?php if($lost??0>0):?><div style="font-size:11px;color:#888;margin-top:4px;" data-i18n="length_discrepancy">ℹ Расхождение в длине (<?=$lost??0?> символов) обычно связано с разным форматированием HTML — данные сохранены корректно.</div><?php endif;?></details>
-<?php if(isset($art['added']))$created++;else $updated++;$success++;
-else:
-$errMsg='';$errDetails='';
-if($respData!==null){$errMsg=$respData['error']??$respData['message']??'';$errDetails=json_encode($respData,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);}
-elseif($responseBody!==''){$errDetails=$responseBody;}else{$errDetails='Нет ответа от сервера';}
-?>
-<div class="result-fail"><span class="error"><span data-i18n="http_error">✗ Ошибка (HTTP</span> <?=$httpCode?>)</span><?php if($errMsg):?><br><span><?=htmlspecialchars($errMsg)?></span><?php endif;?><?php if($curlError):?><br>cURL: <?=htmlspecialchars($curlError)?><?php endif;?></div>
-<details><summary data-i18n="api_response">📬 Ответ API</summary><div class="resp-block"><?=htmlspecialchars((string)$errDetails)?></div></details>
-<?php $errors++;endif;?>
+<?php if($dryRun):?><div class="result-warn" data-i18n="dryrun_skip">⚡ DRY RUN — запрос не отправлен</div></div></div>
+<?php continue; endif; ?>
+<div class="result-placeholder" data-idx="<?=$articleIdx?>"><div class="result-pending" style="color:#888;padding:8px 0;"><span data-i18n="batch_pending">⏳ Ожидание ответа пакетного запроса...</span></div></div>
 </div></div>
-<?php endforeach;?>
+<?php endforeach;
+
+// === Batch API request ===
+if (!empty($batchPayloads) && !$dryRun):
+$batchJson = json_encode(['articles' => $batchPayloads], JSON_UNESCAPED_UNICODE);
+$ch=curl_init($API_URL);
+curl_setopt_array($ch,[CURLOPT_CUSTOMREQUEST=>'POST',CURLOPT_POSTFIELDS=>$batchJson,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>["Authorization: Bearer ".$AUTH_KEY,"Content-Type: application/json"],CURLOPT_HEADER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_ENCODING=>'',CURLOPT_CONNECTTIMEOUT=>60,CURLOPT_TIMEOUT=>300,CURLOPT_SSL_VERIFYHOST=>0,CURLOPT_SSL_VERIFYPEER=>0]);
+$responseFull=curl_exec($ch);$httpCode=curl_getinfo($ch,CURLINFO_HTTP_CODE);$curlError=curl_error($ch);$headerSize=curl_getinfo($ch,CURLINFO_HEADER_SIZE);curl_close($ch);
+$responseBody='';$respData=null;$batchResults=[];
+if($responseFull!==false&&$responseFull!==''){$responseBody=substr((string)$responseFull,$headerSize);$respData=json_decode($responseBody,true);}
+if($curlError):
+    $batchError = htmlspecialchars($curlError);
+    $errCount = count($batchPayloads);
+    echo '<div class="result-fail" style="padding:12px;margin:10px 0;background:#fee2e2;border-radius:8px;"><span class="error" data-i18n="curl_error">✗ cURL Ошибка</span><br><span>'.$batchError.'</span></div>';
+    ?>
+    <script>
+    (function(){
+        document.querySelectorAll('.result-placeholder').forEach(function(el){
+            el.innerHTML = '<div class="result-fail"><span class="error">✗ Ошибка: <?=$batchError?></span></div>';
+        });
+    })();
+    </script>
+    <?php $errors = $errCount;
+elseif($httpCode>=200&&$httpCode<300&&is_array($respData)):
+    // API can return single result or batch results array
+    if (isset($respData['results']) && is_array($respData['results'])) {
+        $batchResults = $respData['results'];
+    } elseif (isset($respData['articles']) && is_array($respData['articles'])) {
+        $batchResults = [$respData['articles']];
+    }
+    // Map results by slug_search (returned by API with lang suffix, e.g. "slug-en")
+    $resultMap = []; $resultIdx = 0;
+    foreach ($batchResults as $br) {
+        $slugFull = $br['slug_search'] ?? '';
+        if ($slugFull) { 
+            $resultMap[$slugFull] = $br;
+            // Also map by base slug (strip language suffix like -en, -ua, -pl, -ru)
+            $slugBase = preg_replace('/-(en|ua|pl|ru)$/', '', $slugFull);
+            if ($slugBase !== $slugFull) {
+                $resultMap[$slugBase] = $br;
+            }
+        }
+        // Fallback: by position
+        if (isset($batchArticles[$resultIdx])) {
+            $resultMap['_pos_'.$resultIdx] = $br;
+        }
+        $resultIdx++;
+    }
+    // Build summary counts
+    $summarySuccess = 0; $summaryErrors = 0; $allResultsHtml = [];
+    foreach ($batchArticles as $baIdx => $ba):
+        $slug = $ba['slug'];
+        $art = $resultMap[$slug] ?? $resultMap['_pos_'.$baIdx] ?? [];
+        $respId = $art['id'] ?? '?';
+        $isAdded = isset($art['added']);
+        $action2 = $isAdded ? 'создана' : 'обновлена';
+        $skipFields = $art['skipped'] ?? [];
+        $glErrors = $art['errors_global'] ?? [];
+        $fieldErrors = $art['errors'] ?? [];
+        $hasErrors = !empty($glErrors) || !empty($fieldErrors);
+        ob_start();
+        ?>
+        <?php if ($hasErrors || empty($art)): ?>
+            <div class="result-fail"><span class="error"><span data-i18n="http_error">✗ Ошибка</span></span>
+            <?php if(!empty($glErrors)):?><br><span class="error" data-i18n="api_errors">✩ Ошибки API:</span><?php foreach($glErrors as $ge):?><div>• <?=htmlspecialchars($ge)?></div><?php endforeach;?><?php endif;?>
+            <?php if(!empty($fieldErrors)):?><br><span class="warning" data-i18n="field_errors">⚠ Ошибки полей:</span><?php foreach($fieldErrors as $fe):?><div>• <?=htmlspecialchars(is_array($fe)?json_encode($fe,JSON_UNESCAPED_UNICODE):$fe)?></div><?php endforeach;?><?php endif;?>
+            <?php if(empty($art)):?><br><span>Нет ответа для данной статьи</span><?php endif;?>
+            </div>
+        <?php $summaryErrors++; else: ?>
+            <div class="result-ok"><span class="success" data-i18n="<?=$isAdded?'article_created':'article_updated'?>">✓ Статья <?=$action2?> (ID: <?=$respId?>)</span>
+            <?php if($ba['multilangid']):?><br><span class="warning">🔗 multilangid: <?=htmlspecialchars($ba['multilangid'])?></span><?php endif;?>
+            <?php if(!empty($skipFields)):?><br><span class="warning" data-i18n="skipped_fields">⚠ Пропущенные поля:</span><?php foreach($skipFields as $fk=>$fv):?><div><?=htmlspecialchars($fk)?>: <?=htmlspecialchars(is_array($fv)?json_encode($fv,JSON_UNESCAPED_UNICODE):$fv)?></div><?php endforeach;?><?php endif;?>
+            </div>
+            <details open><summary data-i18n="verification_title">🔍 Верификация</summary><div class="meta-grid">
+            <span class="key" data-i18n="status_label">статус:</span><span class="val"><span class="success"><span data-i18n="article_saved">✓ Данные сохранены успешно</span><?php if(!empty($respId)):?> (ID: <?=$respId?>)<?php endif;?></span></span>
+            </div></details>
+        <?php $summarySuccess++; endif;
+        $allResultsHtml[$ba['idx']] = ob_get_clean();
+    endforeach;
+    ?>
+    <div class="result-summary" style="padding:12px 16px;margin:10px 0;background:#1a1a2e;border-radius:8px;border:1px solid #0f3460;">
+        <span style="color:#4caf50;font-weight:700;">✅ Успешно отправлено: <?=$summarySuccess?></span>
+        <span style="color:#f44336;font-weight:700;margin-left:20px;">❌ Ошибок: <?=$summaryErrors?></span>
+    </div>
+    <script>
+    (function(){
+        var results = <?=json_encode($allResultsHtml, JSON_UNESCAPED_UNICODE)?>;
+        for (var idx in results) {
+            var el = document.querySelector('.result-placeholder[data-idx="'+idx+'"]');
+            if (el) el.innerHTML = results[idx];
+        }
+    })();
+    </script>
+    <?php
+    $created += $summarySuccess; $success += $summarySuccess; $errors += $summaryErrors;
+    // Show full API response
+    if ($respData): ?>
+    <details><summary data-i18n="api_response">📬 Ответ API</summary><div class="resp-block"><?=htmlspecialchars(json_encode($respData,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES))?></div></details>
+    <?php endif;
+else:
+    // HTTP error — update all placeholders with error
+    $errMsg = '';
+    $errDetails = '';
+    if($respData!==null){$errMsg=$respData['error']??$respData['message']??'';$errDetails=json_encode($respData,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);}
+    elseif($responseBody!==''){$errDetails=$responseBody;}else{$errDetails='Нет ответа от сервера';}
+    $errCount = count($batchPayloads);
+    ?>
+    <div class="result-summary" style="padding:12px 16px;margin:10px 0;background:#1a1a2e;border-radius:8px;border:1px solid #0f3460;">
+        <span style="color:#f44336;font-weight:700;">❌ Ошибок: <?=$errCount?></span>
+    </div>
+    <div class="result-fail"><span class="error"><span data-i18n="http_error">✗ Ошибка (HTTP</span> <?=$httpCode?>)</span><?php if($errMsg):?><br><span><?=htmlspecialchars($errMsg)?></span><?php endif;?></div>
+    <details><summary data-i18n="api_response">📬 Ответ API</summary><div class="resp-block"><?=htmlspecialchars((string)$errDetails)?></div></details>
+    <script>
+    (function(){
+        document.querySelectorAll('.result-placeholder').forEach(function(el){
+            el.innerHTML = '<div class="result-fail"><span class="error">✗ Ошибка пакетного запроса</span></div>';
+        });
+    })();
+    </script>
+    <?php $errors = $errCount;
+endif;
+endif; // batch request
+?>
 <div class="footer"><span data-i18n="total_label">Итог:</span> <span data-i18n="processed">обработано</span> <strong><?=$articleIdx?></strong> | <span data-i18n="skipped">пропущено</span> <strong style="color:#888"><?=$skippedCount?></strong> | <span data-i18n="created">создано</span> <strong style="color:#4caf50"><?=$created?></strong> | <span data-i18n="updated">обновлено</span> <strong style="color:#00d4ff"><?=$updated?></strong> | <span data-i18n="errors">ошибок</span> <strong style="color:#f44336"><?=$errors?></strong><br><span data-i18n="completed_at">Завершено:</span> <?=date('Y-m-d H:i:s')?><br><br><a href="?action=update" style="padding:8px 18px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_to_settings">← Назад к настройкам</a> &nbsp; <a href="?" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_home">На главную</a></div>
 <?php endif;?>
 <script>
 var _lang='ru';try{_lang=localStorage.getItem('boostore_lang')||navigator.language.slice(0,2);localStorage.setItem('boostore_lang',_lang);}catch(e){}
-var _t={ru:{btn_get:'📥 НАЧАТЬ ИМПОРТ',btn_update:'📤 НАЧАТЬ ЭКСПОРТ',plaque_export:'▸ <strong>Настройки экспорта</strong> — отправка статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запросы не отправляются',back_home:'На главную',back_to_settings:'← Назад к настройкам',step2_header:'▸ <strong>Шаг 2</strong> — выберите файлы для экспорта на сайт',step2_title:'Экспорт статей — выбор файлов',back_to_filters:'← Назад к фильтрам',no_files_found:'Нет файлов, соответствующих критериям поиска',files_found:'Найдено файлов:',select_all:'☑ ВЫДЕЛИТЬ ВСЕ',deselect_all:'☐ СНЯТЬ ВСЕ',export_selected:'📤 ЭКСПОРТИРОВАТЬ ВЫДЕЛЕННЫЕ',no_html_files:'✕ Нет HTML-файлов',no_html_files_desc:'В папке blog/ не найдено *.html',skipped_category:'⏭ Пропущен — категория не входит в ALLOWED_CATEGORIES',metadata_title:'📋 Метаданные',fields_count:'полей',payload_title:'📦 Отправляемые данные (payload)',description_title:'📄 Description (полный текст)',dryrun_skip:'⚡ DRY RUN — запрос не отправлен',curl_error:'✗ cURL Ошибка',article_created:'✓ Статья создана',article_updated:'✓ Статья обновлена',skipped_fields:'⚠ Пропущенные поля:',api_errors:'✩ Ошибки API:',field_errors:'⚠ Ошибки полей:',api_response:'📬 Ответ API',verification_title:'🔍 Верификация',sent_chars:'отправлено символов:',saved_chars:'сохранено символов:',status_label:'статус:',article_saved:'✓ Статья сохранена',fetch_error:'✗ Ошибка',verification_warn:'⚠ Данные сохранены, но длина в ответе API не совпадает (возможны различия в форматировании)',length_discrepancy:'ℹ Расхождение в длине',http_error:'✗ Ошибка (HTTP',total_label:'Итог:',processed:'обработано',skipped:'пропущено',created:'создано',updated:'обновлено',errors:'ошибок',completed_at:'Завершено:',desc_size_label:'размер description:',chars_count:'символов',all_languages:'все',lang_ru:'Русский',lang_en:'English',lang_ua:'Українська',lang_pl:'Polski',lang_de:'Deutsch',lang_fr:'Français',lang_es:'Español',lang_it:'Italiano',lang_kk:'Қазақ',lang_be:'Беларуская',api_docs:'API Docs',version:'v2.0',date_format:'ГГГГ-ММ-ДД',search_placeholder:'часть имени, например: shoes',cat_id_placeholder:'ID',cat_name_placeholder:'имя категории',prompt_values:'Введите значения (каждая строка — отдельное поле):',step_forward:'➡ ДАЛЕЕ',dry_run_label:'Dry run',filter_name:'Фильтр по имени (slug)',batch_label:'Отправить за 1 раз',ref_lang_be:'Белорусский (be)',ref_lang_en:'English (en)',ref_lang_ru:'Русский (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Polski (pl)',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей'},en:{btn_get:'📥 START IMPORT',btn_update:'📤 START EXPORT',plaque_export:'▸ <strong>Export Settings</strong> — sending articles to Boostore.pro',dryrun_warn:'⚡ DRY RUN — no API calls sent',back_home:'Home',back_to_settings:'← Back to settings',step2_header:'▸ <strong>Step 2</strong> — select files to export',step2_title:'Export — file selection',back_to_filters:'← Back to filters',no_files_found:'No files matching search criteria',files_found:'Files found:',select_all:'☑ SELECT ALL',deselect_all:'☐ DESELECT ALL',export_selected:'📤 EXPORT SELECTED',no_html_files:'✕ No HTML files',no_html_files_desc:'No *.html found in blog/',skipped_category:'⏭ Skipped — category not in ALLOWED_CATEGORIES',metadata_title:'📋 Metadata',fields_count:'fields',payload_title:'📦 Payload',description_title:'📄 Description (full text)',dryrun_skip:'⚡ DRY RUN — request not sent',curl_error:'✗ cURL Error',article_created:'✓ Article created',article_updated:'✓ Article updated',skipped_fields:'⚠ Skipped fields:',api_errors:'✩ API Errors:',field_errors:'⚠ Field errors:',api_response:'📬 API Response',verification_title:'🔍 Verification',sent_chars:'chars sent:',saved_chars:'chars saved:',status_label:'status:',article_saved:'✓ Article saved',length_discrepancy:'ℹ Length discrepancy',http_error:'✗ Error (HTTP',total_label:'Total:',processed:'processed',skipped:'skipped',created:'created',updated:'updated',errors:'errors',completed_at:'Completed:',desc_size_label:'description size:',chars_count:'chars',all_languages:'all',lang_ru:'Russian',lang_en:'English',lang_ua:'Ukrainian',lang_pl:'Polish',lang_de:'German',lang_fr:'French',lang_es:'Spanish',lang_it:'Italian',lang_kk:'Kazakh',lang_be:'Belarusian',api_docs:'API Docs',version:'v2.0',date_format:'YYYY-MM-DD',search_placeholder:'part of name, e.g.: shoes',cat_id_placeholder:'ID',cat_name_placeholder:'category name',prompt_values:'Enter values (each line is a separate field):',step_forward:'➡ NEXT',dry_run_label:'Dry run',filter_name:'Filter by name (slug)',batch_label:'Send per run',ref_lang_be:'Belarusian (be)',ref_lang_en:'English (en)',ref_lang_ru:'Russian (ru)',ref_lang_ua:'Ukrainian (ua)',ref_lang_pl:'Polish (pl)',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles'},ua:{btn_get:'📥 ПОЧАТИ ІМПОРТ',btn_update:'📤 ПОЧАТИ ЕКСПОРТ',plaque_export:'▸ <strong>Налаштування експорту</strong> — відправлення статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запити не надсилаються',back_home:'На головну',back_to_settings:'← Назад до налаштувань',step2_header:'▸ <strong>Крок 2</strong> — виберіть файли для експорту',step2_title:'Експорт — вибір файлів',back_to_filters:'← Назад до фільтрів',no_files_found:'Немає файлів, що відповідають критеріям пошуку',files_found:'Знайдено файлів:',select_all:'☑ ВИДІЛИТИ ВСІ',deselect_all:'☐ ЗНЯТИ ВСІ',export_selected:'📤 ЕКСПОРТУВАТИ ВИДІЛЕНІ',no_html_files:'✕ Немає HTML-файлів',no_html_files_desc:'У папці blog/ не знайдено *.html',skipped_category:'⏭ Пропущено — категорія не входить до ALLOWED_CATEGORIES',metadata_title:'📋 Метадані',fields_count:'полів',payload_title:'📦 Дані (payload)',description_title:'📄 Опис (повний текст)',dryrun_skip:'⚡ DRY RUN — запит не надіслано',curl_error:'✗ cURL Помилка',article_created:'✓ Статтю створено',article_updated:'✓ Статтю оновлено',skipped_fields:'⚠ Пропущені поля:',api_errors:'✩ Помилки API:',field_errors:'⚠ Помилки полів:',api_response:'📬 Відповідь API',verification_title:'🔍 Верифікація',sent_chars:'надіслано символів:',saved_chars:'збережено символів:',status_label:'статус:',article_saved:'✓ Статтю збережено',length_discrepancy:'ℹ Розбіжність у довжині',http_error:'✗ Помилка (HTTP',total_label:'Підсумок:',processed:'опрацьовано',skipped:'пропущено',created:'створено',updated:'оновлено',errors:'помилок',completed_at:'Завершено:',desc_size_label:'розмір description:',chars_count:'символів',all_languages:'всі',lang_ru:'Російська',lang_en:'Англійська',lang_ua:'Українська',lang_pl:'Польська',lang_de:'Німецька',lang_fr:'Французька',lang_es:'Іспанська',lang_it:'Італійська',lang_kk:'Казахська',lang_be:'Білоруська',api_docs:'API Docs',version:'v2.0',date_format:'РРРР-ММ-ДД',search_placeholder:'частина імені, наприклад: shoes',cat_id_placeholder:'ID',cat_name_placeholder:'ім\'я категорії',prompt_values:'Введіть значення (кожен рядок — окреме поле):',step_forward:'➡ ДАЛІ',dry_run_label:'Dry run',filter_name:'Фільтр за іменем (slug)',batch_label:'Відправити за 1 раз',ref_lang_be:'Білоруська (be)',ref_lang_en:'Англійська (en)',ref_lang_ru:'Російська (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Польська (pl)',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей'}};
+var _t={ru:{btn_get:'📥 НАЧАТЬ ИМПОРТ',btn_update:'📤 НАЧАТЬ ЭКСПОРТ',plaque_export:'▸ <strong>Настройки экспорта</strong> — отправка статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запросы не отправляются',back_home:'На главную',back_to_settings:'← Назад к настройкам',step2_header:'▸ <strong>Шаг 2</strong> — выберите файлы для экспорта на сайт',step2_title:'Экспорт статей — выбор файлов',back_to_filters:'← Назад к фильтрам',no_files_found:'Нет файлов, соответствующих критериям поиска',files_found:'Найдено файлов:',select_all:'☑ ВЫДЕЛИТЬ ВСЕ',deselect_all:'☐ СНЯТЬ ВСЕ',export_selected:'📤 ЭКСПОРТИРОВАТЬ ВЫДЕЛЕННЫЕ',no_html_files:'✕ Нет HTML-файлов',no_html_files_desc:'В папке blog/ не найдено *.html',skipped_category:'⏭ Пропущен — категория не входит в ALLOWED_CATEGORIES',metadata_title:'📋 Метаданные',fields_count:'полей',payload_title:'📦 Отправляемые данные (payload)',description_title:'📄 Description (полный текст)',dryrun_skip:'⚡ DRY RUN — запрос не отправлен',curl_error:'✗ cURL Ошибка',article_created:'✓ Статья создана',article_updated:'✓ Статья обновлена',skipped_fields:'⚠ Пропущенные поля:',api_errors:'✩ Ошибки API:',field_errors:'⚠ Ошибки полей:',api_response:'📬 Ответ API',verification_title:'🔍 Верификация',sent_chars:'отправлено символов:',saved_chars:'сохранено символов:',status_label:'статус:',article_saved:'✓ Данные сохранены успешно',fetch_error:'✗ Ошибка',verification_warn:'✓ Данные сохранены успешно',http_error:'✗ Ошибка (HTTP',total_label:'Итог:',processed:'обработано',skipped:'пропущено',created:'создано',updated:'обновлено',errors:'ошибок',completed_at:'Завершено:',batch_pending:'⏳ Ожидание ответа пакетного запроса...',desc_size_label:'размер description:',chars_count:'символов',all_languages:'все',lang_ru:'Русский',lang_en:'English',lang_ua:'Українська',lang_pl:'Polski',lang_de:'Deutsch',lang_fr:'Français',lang_es:'Español',lang_it:'Italiano',lang_kk:'Қазақ',lang_be:'Беларуская',api_docs:'API Docs',version:'v2.0',date_format:'ГГГГ-ММ-ДД',search_placeholder:'часть имени, например: shoes',cat_id_placeholder:'ID',cat_name_placeholder:'имя категории',prompt_values:'Введите значения (каждая строка — отдельное поле):',step_forward:'➡ ДАЛЕЕ',dry_run_label:'Dry run',filter_name:'Фильтр по имени (slug)',batch_label:'Отправить за 1 раз',ref_lang_be:'Белорусский (be)',ref_lang_en:'English (en)',ref_lang_ru:'Русский (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Polski (pl)',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей'},en:{btn_get:'📥 START IMPORT',btn_update:'📤 START EXPORT',plaque_export:'▸ <strong>Export Settings</strong> — sending articles to Boostore.pro',dryrun_warn:'⚡ DRY RUN — no API calls sent',back_home:'Home',back_to_settings:'← Back to settings',step2_header:'▸ <strong>Step 2</strong> — select files to export',step2_title:'Export — file selection',back_to_filters:'← Back to filters',no_files_found:'No files matching search criteria',files_found:'Files found:',select_all:'☑ SELECT ALL',deselect_all:'☐ DESELECT ALL',export_selected:'📤 EXPORT SELECTED',no_html_files:'✕ No HTML files',no_html_files_desc:'No *.html found in blog/',skipped_category:'⏭ Skipped — category not in ALLOWED_CATEGORIES',metadata_title:'📋 Metadata',fields_count:'fields',payload_title:'📦 Payload',description_title:'📄 Description (full text)',dryrun_skip:'⚡ DRY RUN — request not sent',curl_error:'✗ cURL Error',article_created:'✓ Article created',article_updated:'✓ Article updated',skipped_fields:'⚠ Skipped fields:',api_errors:'✩ API Errors:',field_errors:'⚠ Field errors:',api_response:'📬 API Response',verification_title:'🔍 Verification',sent_chars:'chars sent:',saved_chars:'chars saved:',status_label:'status:',article_saved:'✓ Article saved',length_discrepancy:'ℹ Length discrepancy',http_error:'✗ Error (HTTP',total_label:'Total:',processed:'processed',skipped:'skipped',created:'created',updated:'updated',errors:'errors',completed_at:'Completed:',desc_size_label:'description size:',chars_count:'chars',all_languages:'all',lang_ru:'Russian',lang_en:'English',lang_ua:'Ukrainian',lang_pl:'Polish',lang_de:'German',lang_fr:'French',lang_es:'Spanish',lang_it:'Italian',lang_kk:'Kazakh',lang_be:'Belarusian',api_docs:'API Docs',version:'v2.0',date_format:'YYYY-MM-DD',search_placeholder:'part of name, e.g.: shoes',cat_id_placeholder:'ID',cat_name_placeholder:'category name',prompt_values:'Enter values (each line is a separate field):',step_forward:'➡ NEXT',dry_run_label:'Dry run',filter_name:'Filter by name (slug)',batch_label:'Send per run',ref_lang_be:'Belarusian (be)',ref_lang_en:'English (en)',ref_lang_ru:'Russian (ru)',ref_lang_ua:'Ukrainian (ua)',ref_lang_pl:'Polish (pl)',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles'},ua:{btn_get:'📥 ПОЧАТИ ІМПОРТ',btn_update:'📤 ПОЧАТИ ЕКСПОРТ',plaque_export:'▸ <strong>Налаштування експорту</strong> — відправлення статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запити не надсилаються',back_home:'На головну',back_to_settings:'← Назад до налаштувань',step2_header:'▸ <strong>Крок 2</strong> — виберіть файли для експорту',step2_title:'Експорт — вибір файлів',back_to_filters:'← Назад до фільтрів',no_files_found:'Немає файлів, що відповідають критеріям пошуку',files_found:'Знайдено файлів:',select_all:'☑ ВИДІЛИТИ ВСІ',deselect_all:'☐ ЗНЯТИ ВСІ',export_selected:'📤 ЕКСПОРТУВАТИ ВИДІЛЕНІ',no_html_files:'✕ Немає HTML-файлів',no_html_files_desc:'У папці blog/ не знайдено *.html',skipped_category:'⏭ Пропущено — категорія не входить до ALLOWED_CATEGORIES',metadata_title:'📋 Метадані',fields_count:'полів',payload_title:'📦 Дані (payload)',description_title:'📄 Опис (повний текст)',dryrun_skip:'⚡ DRY RUN — запит не надіслано',curl_error:'✗ cURL Помилка',article_created:'✓ Статтю створено',article_updated:'✓ Статтю оновлено',skipped_fields:'⚠ Пропущені поля:',api_errors:'✩ Помилки API:',field_errors:'⚠ Помилки полів:',api_response:'📬 Відповідь API',verification_title:'🔍 Верифікація',sent_chars:'надіслано символів:',saved_chars:'збережено символів:',status_label:'статус:',article_saved:'✓ Статтю збережено',length_discrepancy:'ℹ Розбіжність у довжині',http_error:'✗ Помилка (HTTP',total_label:'Підсумок:',processed:'опрацьовано',skipped:'пропущено',created:'створено',updated:'оновлено',errors:'помилок',completed_at:'Завершено:',desc_size_label:'розмір description:',chars_count:'символів',all_languages:'всі',lang_ru:'Російська',lang_en:'Англійська',lang_ua:'Українська',lang_pl:'Польська',lang_de:'Німецька',lang_fr:'Французька',lang_es:'Іспанська',lang_it:'Італійська',lang_kk:'Казахська',lang_be:'Білоруська',api_docs:'API Docs',version:'v2.0',date_format:'РРРР-ММ-ДД',search_placeholder:'частина імені, наприклад: shoes',cat_id_placeholder:'ID',cat_name_placeholder:'ім\'я категорії',prompt_values:'Введіть значення (кожен рядок — окреме поле):',step_forward:'➡ ДАЛІ',dry_run_label:'Dry run',filter_name:'Фільтр за іменем (slug)',batch_label:'Відправити за 1 раз',ref_lang_be:'Білоруська (be)',ref_lang_en:'Англійська (en)',ref_lang_ru:'Російська (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Польська (pl)',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей'}};
 function applyLang(l){try{localStorage.setItem('boostore_lang',l);}catch(e){}_lang=l;document.querySelectorAll('[data-i18n]').forEach(function(el){var key=el.getAttribute('data-i18n');if(_t[l]&&_t[l][key]!==undefined)el.innerHTML=_t[l][key];});document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){var key=el.getAttribute('data-i18n-placeholder');if(_t[l]&&_t[l][key]!==undefined)el.placeholder=_t[l][key];});}
 function applyLang(l){try{localStorage.setItem('boostore_lang',l);}catch(e){}_lang=l;document.querySelectorAll('[data-i18n]').forEach(function(el){var key=el.getAttribute('data-i18n');if(_t[l]&&_t[l][key]!==undefined)el.innerHTML=_t[l][key];});}
 if(_lang!='ru'){document.addEventListener('DOMContentLoaded',function(){applyLang(_lang);});}
@@ -910,8 +1113,8 @@ details.card>summary::-webkit-details-marker{display:none}details.card>summary .
 <div style="flex:0 0 40px;text-align:center;"><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.cat-row').remove()">✕</button></div></div>
 <?php $i++;endforeach;?></div>
 <button type="button" class="btn btn-primary btn-sm" onclick="addCatRow()" style="margin-top:6px;" data-i18n="btn_add_cat">+ Добавить категорию</button>
-<hr><h3 data-i18n="export_settings_title">📤 Настройки экспорта</h3>
-<div style="font-size:12px;color:#888;margin-bottom:8px;" data-i18n="export_settings_desc">Параметры, влияющие на получение и сохранение статей из API</div>
+<hr><h3 data-i18n="import_settings_title">📥 Настройки импорта</h3>
+<div style="font-size:12px;color:#888;margin-bottom:8px;" data-i18n="import_settings_desc">Параметры, влияющие на получение и сохранение статей из API</div>
 <h3 style="margin:10px 0 8px;font-size:14px;color:#888;" data-i18n="folder_structure">📁 Структура папок</h3>
 <div class="form-check"><input type="checkbox" name="PLANNED_SEPARATE_FOLDER" id="pf" value="1"<?=$PLANNED_SEPARATE_FOLDER?' checked':''?>><label for="pf" style="display:inline;margin:0;" data-i18n="folder_planned">Разделять planned в <code>blog/planned/</code></label></div>
 <div class="form-check"><input type="checkbox" name="CATEGORY_FOLDER" id="cf" value="1"<?=$CATEGORY_FOLDER?' checked':''?>><label for="cf" style="display:inline;margin:0;" data-i18n="folder_category">Разделять по папкам категорий</label></div>
@@ -933,8 +1136,8 @@ details.card>summary::-webkit-details-marker{display:none}details.card>summary .
 <option value="pl"<?=$REFERENCE_LANG==='pl'?' selected':''?> data-i18n="ref_lang_pl">Polski (pl)</option>
 </select>
 </div></div>
-<hr><h3 data-i18n="import_settings_title">📥 Настройки импорта</h3>
-<div style="font-size:12px;color:#888;margin-bottom:8px;" data-i18n="import_settings_desc">Параметры, влияющие на отправку статей на сайт</div>
+<hr><h3 data-i18n="export_settings_title">📤 Настройки экспорта</h3>
+<div style="font-size:12px;color:#888;margin-bottom:8px;" data-i18n="export_settings_desc">Параметры, влияющие на отправку статей на сайт</div>
 <div class="form-row"><div class="field" style="max-width:400px;">
 <label data-i18n="date_mode_label">📅 Режим даты публикации</label>
 <div style="font-size:11px;color:#888;margin-bottom:6px;" data-i18n="date_mode_desc">Как определять дату публикации статей при импорте</div>
@@ -995,7 +1198,6 @@ document.getElementById('date_offset_block').style.display=(m==='offset'?'block'
 </select>
 </div></div>
 </div>
-<?php include(dirname(__FILE__).'/fix_fields_inc.php');?>
 <h3 style="margin:10px 0 8px;font-size:14px;color:#888;" data-i18n="send_limit_title">📦 Лимит отправки</h3>
 <div class="form-row"><div class="field" style="max-width:200px;">
 <label data-i18n="send_limit_label">Лимит отправки за 1 раз</label>
