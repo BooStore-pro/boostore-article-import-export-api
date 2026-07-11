@@ -445,6 +445,8 @@ $expArticleId = !empty($_GET['export_article_id']) && $_GET['export_article_id']
 $expCategoryId = !empty($_GET['export_category_id']) && $_GET['export_category_id'] !== '0';
 $expCategoryName = empty($_GET['export_category_name']) || $_GET['export_category_name'] !== '0'; // по умолчанию true
 
+function dateToTimestamp(?string $d):?int{if(!$d)return null;if(ctype_digit($d))return(int)$d;try{return(new DateTimeImmutable($d))->getTimestamp();}catch(Exception$e){return null;}}
+
 $overridePlanned = $expOverridePlanned;
 // Pre-scan for offset mode: build slug→date map
 $slugDateMap = [];
@@ -771,7 +773,6 @@ endif;
 // === Step 3: Process selected files ===
 function extractAllMeta(string $html):array{$m=[];preg_match_all('/<meta\s+name=["\']([^"\']+)["\']\s+content=["\'](.*?)["\']\s*\/?>/is',$html,$p,PREG_SET_ORDER);if(empty($p)){preg_match_all('/<meta\s+content=["\'](.*?)["\']\s+name=["\']([^"\']+)["\']\s*\/?>/is',$html,$p,PREG_SET_ORDER);foreach($p as $x)$m[trim($x[2])]=trim($x[1]);}else{foreach($p as $x)$m[trim($x[1])]=trim($x[2]);}return $m;}
 function extractContent(string $html):string{$sep='<!-- ARTICLE SEPARATOR BELOW -->';$p=mb_strpos($html,$sep);if($p===false){$sep='<-- РАЗДЕЛИТЕЛЬ СТАТЬЯ НИЖЕ --!>';$p=mb_strpos($html,$sep);}if($p!==false){$c=mb_substr($html,$p+mb_strlen($sep));$c=preg_replace('/<\/?body[^>]*>/i','',$c);$c=preg_replace('/<\/?html[^>]*>/i','',$c);return trim($c);}$sp=mb_strpos($html,'<style');if($sp!==false)return trim(mb_substr($html,$sp));preg_match('/<body[^>]*>(.*)<\/body>/is',$html,$bm);return trim($bm[1]??$html);}
-function dateToTimestamp(?string $d):?int{if(!$d)return null;if(ctype_digit($d))return(int)$d;try{return(new DateTimeImmutable($d))->getTimestamp();}catch(Exception$e){return null;}}
 
 // Load files from step 2 selection, or scan directory as fallback
 $htmlFiles = [];
