@@ -138,6 +138,7 @@ if (!isset($_GET['confirm'])): ?>
 <div class="cat-row"><input type="text" name="cat[<?=$catIdx?>][id]" value="<?=$cid?>" placeholder="ID" data-i18n-placeholder="cat_id_placeholder" style="max-width:80px;"><input type="text" name="cat[<?=$catIdx?>][name]" value="<?=htmlspecialchars($cname)?>" placeholder="имя категории" data-i18n-placeholder="cat_name_placeholder"><button type="button" onclick="this.parentElement.remove()" class="btn-sm">✕</button></div>
 <?php $catIdx++;endforeach;?></div>
 <button type="button" onclick="var d=document.getElementById('get-cats'),i=d.children.length;d.innerHTML+='<div class=\'cat-row\'><input type=\'text\' name=\'cat['+i+'][id]\' placeholder=\'ID\' data-i18n-placeholder=\'cat_id_placeholder\' style=\'max-width:80px;\'><input type=\'text\' name=\'cat['+i+'][name]\' placeholder=\'имя категории\' data-i18n-placeholder=\'cat_name_placeholder\'><button type=\'button\' onclick=\'this.parentElement.remove()\' class=\'btn-sm\'>✕</button></div>';" style="padding:4px 12px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;cursor:pointer;font-size:12px;margin-top:4px;" data-i18n="btn_add_cat">+ Добавить категорию</button>
+<input type="hidden" name="cats_configured" value="1">
 </div>
 <button type="submit" class="btn btn-primary" data-i18n="btn_get">📥 НАЧАТЬ ИМПОРТ</button>
 <a href="?" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;margin-left:8px;" data-i18n="back_home">← На главную</a>
@@ -152,15 +153,15 @@ document.addEventListener('DOMContentLoaded',function(){var ls=document.getEleme
 </div></body></html>
 <?php exit; endif;
 
-// Parse categories from form if provided
-if (!empty($getCats)) {
+// Parse categories from form if submitted (cats_configured = форма с категориями была отправлена)
+if (isset($_GET['cats_configured'])) {
     $tmpCats = [];
     foreach ($getCats as $gc) {
         $cid = (int)($gc['id'] ?? 0);
         $cnm = trim($gc['name'] ?? '');
         if ($cid > 0 || $cnm !== '') $tmpCats[$cid] = $cnm ?: 'cat_'.$cid;
     }
-    if (!empty($tmpCats)) $ALLOWED_CATEGORIES = $tmpCats;
+    $ALLOWED_CATEGORIES = $tmpCats; // перезаписываем — даже пустым (все категории)
 }
 
 // Override folder structure from form if provided
@@ -362,19 +363,43 @@ details.sub-article{margin-bottom:8px;border-radius:6px}
 <div class="meta-info" style="padding-top:20px; padding:bottom:20px; font-size:110%;"><span data-i18n="all_total">Всего:</span> <strong><?=$totalItems?:$total?></strong> <span data-i18n="articles_count">статей</span> | <span data-i18n="loaded_count">Загружено:</span> <strong style="color:#4caf50"><?=$saved?></strong> | <span data-i18n="skipped_count">Пропущено:</span> <strong style="color:#888"><?=$skipped?></strong> | <span data-i18n="page_label">Страница</span> <strong><?=$requestedPage?></strong> <span data-i18n="from_label">из</span> <strong><?=$totalPages?></strong><?php if($fixes):?> | <span data-i18n="fixed_label">Исправлено:</span> <strong style="color:#ff9800"><?=count($fixes)?></strong><?php endif;?><?php if(!empty($getSearch)):?> | <span data-i18n="search_label">Поиск:</span> <strong style="color:#00d4ff"><?=htmlspecialchars(implode(', ', $getSearch))?></strong><?php endif;?></div>
 
 
-<?php if ($totalPages > 1): ?>
+<?php if ($totalPages > 1):
+// Сохраняем все текущие параметры фильтрации для пагинации
+$pageQp = $_GET;
+unset($pageQp['p']);
+$pageQueryStr = htmlspecialchars(http_build_query($pageQp));
+?>
 <div class="card" style="display:flex;gap:8px;align-items:center;margin-bottom:26px;flex-wrap:wrap;padding:10px;">
   <form method="get" action="?" style="display:flex;gap:6px;align-items:center;background:#0d1b2a;padding:8px 12px;border-radius:6px;border:1px solid #0f3460;">
     <input type="hidden" name="action" value="get">
+    <?php
+    // Пробрасываем все текущие параметры фильтрации как hidden-поля
+    foreach ($pageQp as $pk => $pv) {
+        if ($pk === 'action') continue;
+        if (is_array($pv)) {
+            foreach ($pv as $pk2 => $pv2) {
+                if (is_array($pv2)) {
+                    foreach ($pv2 as $pk3 => $pv3) {
+                        echo '<input type="hidden" name="'.htmlspecialchars($pk).'['.htmlspecialchars($pk2).']['.htmlspecialchars($pk3).']" value="'.htmlspecialchars($pv3).'">';
+                    }
+                } else {
+                    echo '<input type="hidden" name="'.htmlspecialchars($pk).'['.htmlspecialchars($pk2).']" value="'.htmlspecialchars($pv2).'">';
+                }
+            }
+        } else {
+            echo '<input type="hidden" name="'.htmlspecialchars($pk).'" value="'.htmlspecialchars($pv).'">';
+        }
+    }
+    ?>
     <label style="font-size:12px;color:#888;" data-i18n="page_label">Страница:</label>
     <input type="number" name="p" value="<?=$requestedPage?>" min="1" max="<?=$totalPages?>" style="width:70px;padding:4px 6px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;font-size:13px;">
     <button type="submit" style="padding:4px 10px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;cursor:pointer;" data-i18n="go_to_page">Перейти</button>
   </form>
   <?php if ($requestedPage > 1): ?>
-    <a href="?action=get&amp;p=<?=$requestedPage-1?>" style="padding:4px 12px;background:#0f3460;color:#e0e0e0;border-radius:4px;text-decoration:none;font-size:13px;"><span data-i18n="prev_page">← Назад (стр.</span> <?=$requestedPage-1?>)</a>
+    <a href="?<?=$pageQueryStr?>&amp;p=<?=$requestedPage-1?>" style="padding:4px 12px;background:#0f3460;color:#e0e0e0;border-radius:4px;text-decoration:none;font-size:13px;"><span data-i18n="prev_page">← Назад (стр.</span> <?=$requestedPage-1?>)</a>
   <?php endif; ?>
   <?php if ($requestedPage < $totalPages): ?>
-    <a href="?action=get&amp;p=<?=$requestedPage+1?>" style="padding:4px 12px;background:#0f3460;color:#00d4ff;border-radius:4px;text-decoration:none;font-size:13px;"><span data-i18n="next_page">Далее → (стр.</span> <?=$requestedPage+1?>)</a>
+    <a href="?<?=$pageQueryStr?>&amp;p=<?=$requestedPage+1?>" style="padding:4px 12px;background:#0f3460;color:#00d4ff;border-radius:4px;text-decoration:none;font-size:13px;"><span data-i18n="next_page">Далее → (стр.</span> <?=$requestedPage+1?>)</a>
   <?php endif; ?>
   <span style="font-size:11px;color:#555;"><span data-i18n="per_page_by">по</span> <?=$perPage?> <span data-i18n="articles_count">статей</span>, <span data-i18n="all_total">всего</span> <?=$totalItems?></span>
 </div>
