@@ -273,7 +273,7 @@ if ($articles !== null && !$fetchError) {
         $catId = (int)($a['category_id'] ?? 0);
         if (!empty($ALLOWED_CATEGORIES) && !isset($ALLOWED_CATEGORIES[$catId])) { $skipped++; continue; }
         $categoryName = $ALLOWED_CATEGORIES[$catId];
-$id = (int)($a['id'] ?? 0); $name = $a['name'] ?? $a['slug'] ?? 'article-'.$id;
+$id = (int)($a['id'] ?? 0); $name = $a['name'] ?? $a['slug'] ?? (string)$id;
 $slug = $a['slug'] ?? $name; $language = $a['language'] ?? 'ru';
 // Strip language suffix from name/slug if present (e.g., "slug-ua" → "slug")
 $name = preg_replace('/-(ua|pl|en|ru)$/i', '', $name);
@@ -297,7 +297,7 @@ $slug = preg_replace('/-(ua|pl|en|ru)$/i', '', $slug);
         $dirPath = $baseDir.DIRECTORY_SEPARATOR.$subDir;
         if (!is_dir($dirPath)) mkdir($dirPath,0777,true);
         $safeName = preg_replace('/[^a-zA-Z0-9_-]/','',$name); $safeName = trim($safeName,'-_');
-        if ($safeName==='') $safeName = 'article-'.$id;
+        if ($safeName==='') $safeName = (string)$id;
         $filename = $id.'-'.$safeName.'-'.$language.'.html';
         $filepath = $dirPath.$filename; $relPath = 'blog'.DIRECTORY_SEPARATOR.$subDir.$filename;
         $h = '<!DOCTYPE html>'."\n".'<html lang="'.htmlspecialchars($language).'">'."\n".'<head>'."\n".'<meta charset="UTF-8">'."\n".'<title>'.htmlspecialchars($title).'</title>'."\n";
@@ -455,6 +455,18 @@ $gst=$allOk?'success':'error';
 <?php endforeach;?></div></details>
 <?php endforeach;?>
 <div class="footer"><strong>Boostore.pro</strong> — <span data-i18n="import_complete">Импорт статей завершён</span></div>
+<script>
+(function(){
+    var m = '📥 Загружено: <?=$saved?> из <?=$totalItems?:$total?>';
+    if(<?=$skipped?>>0) m += ' | Пропущено: <?=$skipped?>';
+    <?php if($fixes):?>m += ' | Исправлено: <?=count($fixes)?>'<?php endif;?>
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#16213e;border:2px solid #0f3460;border-radius:10px;padding:14px 20px;color:#e0e0e0;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5);max-width:400px;line-height:1.5;';
+    t.innerHTML = '<strong style="color:#00d4ff;">📊 Импорт завершён</strong><br>' + m;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.style.transition = 'opacity 1s'; t.style.opacity = '0'; setTimeout(function(){ t.remove(); },1000); }, 6000);
+})();
+</script>
 <?php endif;?>
 <div style="text-align:center;margin:12px 0;"><a href="?" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_button">← НАЗАД</a></div>
 <script>
@@ -486,6 +498,7 @@ $expStatusOverride = isset($_GET['status_override']) ? (int)$_GET['status_overri
 $expArticleId = !empty($_GET['export_article_id']) && $_GET['export_article_id'] !== '0';
 $expCategoryId = !empty($_GET['export_category_id']) && $_GET['export_category_id'] !== '0';
 $expCategoryName = empty($_GET['export_category_name']) || $_GET['export_category_name'] !== '0'; // по умолчанию true
+$expMode = $_GET['export_mode'] ?? 'all'; // all, insert, update
 
 function dateToTimestamp(?string $d):?int{if(!$d)return null;if(ctype_digit($d))return(int)$d;try{return(new DateTimeImmutable($d))->getTimestamp();}catch(Exception$e){return null;}}
 
@@ -562,7 +575,7 @@ $searchFilter = array_values($searchFilter);
 if (!isset($_GET['confirm'])): ?>
 <script>
 var _lang='ru';try{_lang=localStorage.getItem('boostore_lang')||navigator.language.slice(0,2);localStorage.setItem('boostore_lang',_lang);}catch(e){}
-var _t={ru:{filter_name:'Фильтр по имени (slug)',batch_label:'Отправить за 1 раз',lang_label:'Язык',step_forward:'➡ ДАЛЕЕ',back_home:'← На главную',dry_run_label:'Dry run',plaque_export:'▸ <strong>Настройки экспорта</strong> — отправка статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запросы не отправляются',btn_more:'+ ЕЩЕ',btn_more_multi:'📋 ЕЩЕ НЕСКОЛЬКО',prompt_values:'Введите значения (каждая строка — отдельное поле):',search_placeholder:'часть имени, например: shopify',all_languages:'все',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',date_fixed_label:'📅 Фиксированная дата',date_offset_label:'📅 Базовая дата',date_offset_days:'+ дней на статью',override_planned:'📅 Переопределить planned',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_label:'🔒 Статус доступа (status)',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей',status_value_label:'Значение статуса',status_published:'1 — опубликовано (доступно)',status_hidden:'0 — скрыто (недоступно)'},en:{filter_name:'Filter by name (slug)',batch_label:'Send per run',lang_label:'Language',id_min_label:'ID >',id_max_label:'ID <',id_min_placeholder:'1000',id_max_placeholder:'5000',step_forward:'➡ NEXT',back_home:'← Home',dry_run_label:'Dry run',plaque_export:'▸ <strong>Export Settings</strong> — sending articles to Boostore.pro',dryrun_warn:'⚡ DRY RUN — no API calls sent',btn_more:'+ MORE',btn_more_multi:'📋 ADD MULTIPLE',prompt_values:'Enter values (each line is a separate field):',search_placeholder:'part of name, e.g.: shopify',all_languages:'all',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',date_fixed_label:'📅 Fixed Date',date_offset_label:'📅 Base Date',date_offset_days:'+ days per article',override_planned:'📅 Override planned',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_label:'🔒 Access Status (status)',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles',status_value_label:'Status Value',status_published:'1 — published (public)',status_hidden:'0 — hidden (private)'},ua:{filter_name:'Фільтр за іменем (slug)',batch_label:'Відправити за 1 раз',lang_label:'Мова',step_forward:'➡ ДАЛІ',back_home:'← На головну',dry_run_label:'Dry run',plaque_export:'▸ <strong>Налаштування експорту</strong> — відправлення статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запити не надсилаються',btn_more:'+ ЩЕ',btn_more_multi:'📋 ДОДАТИ КІЛЬКА',prompt_values:'Введіть значення (кожен рядок — окреме поле):',search_placeholder:'частина імені, наприклад: shopify',all_languages:'всі',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',date_fixed_label:'📅 Фіксована дата',date_offset_label:'📅 Базова дата',date_offset_days:'+ днів на статтю',override_planned:'📅 Перевизначити planned',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_label:'🔒 Статус доступу (status)',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей',status_value_label:'Значення статусу',status_published:'1 — опубліковано (доступно)',status_hidden:'0 — приховано (недоступно)'}};
+var _t={ru:{filter_name:'Фильтр по имени (slug)',batch_label:'Отправить за 1 раз',lang_label:'Язык',step_forward:'➡ ДАЛЕЕ',back_home:'← На главную',dry_run_label:'Dry run',plaque_export:'▸ <strong>Настройки экспорта</strong> — отправка статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запросы не отправляются',btn_more:'+ ЕЩЕ',btn_more_multi:'📋 ЕЩЕ НЕСКОЛЬКО',prompt_values:'Введите значения (каждая строка — отдельное поле):',search_placeholder:'часть имени, например: shopify',all_languages:'все',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',date_fixed_label:'📅 Фиксированная дата',date_offset_label:'📅 Базовая дата',date_offset_days:'+ дней на статью',override_planned:'📅 Переопределить planned',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_label:'🔒 Статус доступа (status)',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей',status_value_label:'Значение статуса',status_published:'1 — опубликовано (доступно)',status_hidden:'0 — скрыто (недоступно)',mode_label:'🔄 Режим экспорта',mode_all:'Добавление + обновление',mode_insert:'Только добавление новых',mode_update:'Только обновление существующих'},en:{filter_name:'Filter by name (slug)',batch_label:'Send per run',lang_label:'Language',id_min_label:'ID >',id_max_label:'ID <',id_min_placeholder:'1000',id_max_placeholder:'5000',step_forward:'➡ NEXT',back_home:'← Home',dry_run_label:'Dry run',plaque_export:'▸ <strong>Export Settings</strong> — sending articles to Boostore.pro',dryrun_warn:'⚡ DRY RUN — no API calls sent',btn_more:'+ MORE',btn_more_multi:'📋 ADD MULTIPLE',prompt_values:'Enter values (each line is a separate field):',search_placeholder:'part of name, e.g.: shopify',all_languages:'all',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',date_fixed_label:'📅 Fixed Date',date_offset_label:'📅 Base Date',date_offset_days:'+ days per article',override_planned:'📅 Override planned',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_label:'🔒 Access Status (status)',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles',status_value_label:'Status Value',status_published:'1 — published (public)',status_hidden:'0 — hidden (private)',mode_label:'?? Export mode',mode_all:'Add + Update',mode_insert:'Add new only',mode_update:'Update existing only'},ua:{filter_name:'Фільтр за іменем (slug)',batch_label:'Відправити за 1 раз',lang_label:'Мова',step_forward:'➡ ДАЛІ',back_home:'← На головну',dry_run_label:'Dry run',plaque_export:'▸ <strong>Налаштування експорту</strong> — відправлення статей на Boostore.pro',dryrun_warn:'⚡ DRY RUN — запити не надсилаються',btn_more:'+ ЩЕ',btn_more_multi:'📋 ДОДАТИ КІЛЬКА',prompt_values:'Введіть значення (кожен рядок — окреме поле):',search_placeholder:'частина імені, наприклад: shopify',all_languages:'всі',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',date_fixed_label:'📅 Фіксована дата',date_offset_label:'📅 Базова дата',date_offset_days:'+ днів на статтю',override_planned:'📅 Перевизначити planned',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_label:'🔒 Статус доступу (status)',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей',status_value_label:'Значення статусу',status_published:'1 — опубліковано (доступно)',status_hidden:'0 — ,mode_label:'🔄 Режим експорту',mode_all:'Додавання + оновлення',mode_insert:'Тільки додавання нових',mode_update:'Тільки оновлення існуючих'приховано (недоступно)'}};
 function applyLang(l){try{localStorage.setItem('boostore_lang',l);}catch(e){}_lang=l;document.querySelectorAll('[data-i18n]').forEach(function(el){var key=el.getAttribute('data-i18n');if(_t[l]&&_t[l][key]!==undefined)el.innerHTML=_t[l][key];});document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){var key=el.getAttribute('data-i18n-placeholder');if(_t[l]&&_t[l][key]!==undefined)el.placeholder=_t[l][key];});}
 if(_lang!='ru'){document.addEventListener('DOMContentLoaded',function(){applyLang(_lang);});}
 document.addEventListener('DOMContentLoaded',function(){var ls=document.getElementById('lang_switcher');if(ls){ls.value=_lang;ls.addEventListener('change',function(){applyLang(this.value);});}});
@@ -664,6 +677,24 @@ document.addEventListener('DOMContentLoaded',function(){var ls=document.getEleme
       <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
         <input type="hidden" name="export_category_name" value="0">
         <input type="checkbox" name="export_category_name" value="1"<?=(!isset($_GET['export_category_name'])||$_GET['export_category_name']!=='0')?' checked':''?> data-i18n="export_category_name"> Имя категории
+      </label>
+    </div>
+  </div>
+  <hr style="border-color:#0f3460;margin:4px 0;">
+  <div>
+    <label style="font-size:11px;color:#888;display:block;margin-bottom:6px;" data-i18n="mode_label">🔄 Режим экспорта</label>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <label style="font-size:13px;color:#e0e0e0;cursor:pointer;display:flex;align-items:center;gap:4px;">
+        <input type="radio" name="export_mode" value="all"<?=(($_GET['export_mode']??'all')==='all'?' checked':'')?>>
+        <span data-i18n="mode_all">Добавление + обновление</span>
+      </label>
+      <label style="font-size:13px;color:#e0e0e0;cursor:pointer;display:flex;align-items:center;gap:4px;">
+        <input type="radio" name="export_mode" value="insert"<?=(($_GET['export_mode']??'')==='insert'?' checked':'')?>>
+        <span data-i18n="mode_insert">Только добавление новых</span>
+      </label>
+      <label style="font-size:13px;color:#e0e0e0;cursor:pointer;display:flex;align-items:center;gap:4px;">
+        <input type="radio" name="export_mode" value="update"<?=(($_GET['export_mode']??'')==='update'?' checked':'')?>>
+        <span data-i18n="mode_update">Только обновление существующих</span>
       </label>
     </div>
   </div>
@@ -772,6 +803,7 @@ h1{font-size:22px;color:#00d4ff;margin-bottom:5px}.meta-info{color:#888;font-siz
   <input type="hidden" name="confirm" value="1">
   <input type="hidden" name="step" value="3">
   <input type="hidden" name="batch" value="<?=(int)($_GET['batch']??$SEND_BATCH_LIMIT??200)?>">
+  <input type="hidden" name="export_mode" value="<?=htmlspecialchars($_GET['export_mode']??'all')?>">
   <?php if (isset($_GET['dry-run'])): ?><input type="hidden" name="dry-run" value="1"><?php endif; ?>
   <?php if (($_GET['date_mode']??$DATE_MODE)!==''): ?><input type="hidden" name="date_mode" value="<?=htmlspecialchars($_GET['date_mode']??$DATE_MODE)?>"><?php endif; ?>
   <?php if (($_GET['date_mode']??$DATE_MODE)==='fixed'): ?><input type="hidden" name="date_fixed" value="<?=htmlspecialchars($_GET['date_fixed']??$DATE_FIXED??'')?>"><?php endif; ?>
@@ -915,8 +947,13 @@ if ($expDateMode === 'fixed' && $expDateFixed !== '') {
 }
 if($overridePlanned!==null)$planned=(int)$overridePlanned;
 $description=extractContent($html);
-$payload=['title'=>$title,'meta_title'=>$metaTitle,'meta_description'=>$metaDesc,'meta_keywords'=>$metaKeywords,'tags'=>$tags,'description'=>$description,'short_description'=>$shortDesc,'name'=>$slug,'slug'=>$slug,'slug_search'=>$slug,'update_exists'=>true,'language'=>$language,'status'=>$status,'planned'=>$planned,'datestamp'=>$datestamp,'schema'=>$schema,'priority'=>$priority,'subdomain'=>$subdomain,'view'=>$view,'settings_comments'=>$settingsComments,'settings_tags'=>$settingsTags,'comments'=>$comments,'settings_rating'=>$settingsRating,'password'=>$password,'show_tree'=>$showTree,'show_inlist'=>$showInlist,'show_period'=>$showPeriod,'rating'=>$rating];
-if($expArticleId && $articleId>0)$payload['id']=$articleId;
+$payload=['title'=>$title,'meta_title'=>$metaTitle,'meta_description'=>$metaDesc,'meta_keywords'=>$metaKeywords,'tags'=>$tags,'description'=>$description,'short_description'=>$shortDesc,'name'=>$slug,'slug'=>$slug,'slug_search'=>$slug,'language'=>$language,'status'=>$status,'planned'=>$planned,'datestamp'=>$datestamp,'schema'=>$schema,'priority'=>$priority,'subdomain'=>$subdomain,'view'=>$view,'settings_comments'=>$settingsComments,'settings_tags'=>$settingsTags,'comments'=>$comments,'settings_rating'=>$settingsRating,'password'=>$password,'show_tree'=>$showTree,'show_inlist'=>$showInlist,'show_period'=>$showPeriod,'rating'=>$rating];
+if($expMode !== 'insert') $payload['update_exists'] = true;
+if($expArticleId && $articleId>0){
+    $payload['id'] = $articleId;
+} elseif ($articleId === 0 && ctype_digit($slug)) {
+    $payload['id'] = (int)$slug;
+}
 if($expCategoryId && $catId>0)$payload['category_id']=$catId;
 if($expCategoryName && $categoryName!=='')$payload['category']=$categoryName;
 if($multilangid)$payload['multilangid']=$multilangid;
@@ -942,8 +979,9 @@ $batchArticles[] = ['slug'=>$slug, 'relPath'=>$relPath, 'multilangid'=>$multilan
 // === Batch API request ===
 if (!empty($batchPayloads) && !$dryRun):
 $batchJson = json_encode(['articles' => $batchPayloads], JSON_UNESCAPED_UNICODE);
+$httpMethod = ($expMode === 'update') ? 'PUT' : 'POST';
 $ch=curl_init($API_URL);
-curl_setopt_array($ch,[CURLOPT_CUSTOMREQUEST=>'POST',CURLOPT_POSTFIELDS=>$batchJson,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>["Authorization: Bearer ".$AUTH_KEY,"Content-Type: application/json"],CURLOPT_HEADER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_ENCODING=>'',CURLOPT_CONNECTTIMEOUT=>60,CURLOPT_TIMEOUT=>300,CURLOPT_SSL_VERIFYHOST=>0,CURLOPT_SSL_VERIFYPEER=>0]);
+curl_setopt_array($ch,[CURLOPT_CUSTOMREQUEST=>$httpMethod,CURLOPT_POSTFIELDS=>$batchJson,CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>["Authorization: Bearer ".$AUTH_KEY,"Content-Type: application/json"],CURLOPT_HEADER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_ENCODING=>'',CURLOPT_CONNECTTIMEOUT=>60,CURLOPT_TIMEOUT=>300,CURLOPT_SSL_VERIFYHOST=>0,CURLOPT_SSL_VERIFYPEER=>0]);
 $responseFull=curl_exec($ch);$httpCode=curl_getinfo($ch,CURLINFO_HTTP_CODE);$curlError=curl_error($ch);$headerSize=curl_getinfo($ch,CURLINFO_HEADER_SIZE);curl_close($ch);
 $responseBody='';$respData=null;$batchResults=[];
 if($responseFull!==false&&$responseFull!==''){$responseBody=substr((string)$responseFull,$headerSize);$respData=json_decode($responseBody,true);}
@@ -986,7 +1024,7 @@ elseif($httpCode>=200&&$httpCode<300&&is_array($respData)):
         $resultIdx++;
     }
     // Build summary counts
-    $summarySuccess = 0; $summaryErrors = 0; $allResultsHtml = [];
+    $summaryCreated = 0; $summaryUpdated = 0; $summaryErrors = 0; $summarySkippedExist = 0; $allResultsHtml = []; $errorDetails = []; $skippedExistDetails = [];
     foreach ($batchArticles as $baIdx => $ba):
         $slug = $ba['slug'];
         $art = $resultMap[$slug] ?? $resultMap['_pos_'.$baIdx] ?? [];
@@ -997,15 +1035,23 @@ elseif($httpCode>=200&&$httpCode<300&&is_array($respData)):
         $glErrors = $art['errors_global'] ?? [];
         $fieldErrors = $art['errors'] ?? [];
         $hasErrors = !empty($glErrors) || !empty($fieldErrors);
+        $glErrorsStr = implode(' ', $glErrors);
+        $alreadyExists = !empty($glErrors) && preg_match('/already exists/i', $glErrorsStr);
+        $notFound = !empty($glErrors) && preg_match('/not found/i', $glErrorsStr);
+        $isSkip = ($alreadyExists && $expMode === 'insert') || ($notFound && $expMode === 'update');
         ob_start();
         ?>
         <?php if ($hasErrors || empty($art)): ?>
+            <?php if ($isSkip): $summarySkippedExist++; $skipReason = $alreadyExists ? 'уже существует' : 'не найдена'; $skippedExistDetails[] = "#{$ba['idx']} {$ba['slug']} — {$skipReason}"; ?>
+            <div class="result-skip"><span style="color:#888;">⏭ <?=htmlspecialchars(ucfirst($skipReason))?> (пропущено)</span></div>
+            <?php else: $summaryErrors++; $errorDetails[] = "#{$ba['idx']} {$ba['slug']}: " . implode('; ', $glErrors ?: $fieldErrors ?: ['Нет ответа']); ?>
             <div class="result-fail"><span class="error"><span data-i18n="http_error">✗ Ошибка</span></span>
             <?php if(!empty($glErrors)):?><br><span class="error" data-i18n="api_errors">✩ Ошибки API:</span><?php foreach($glErrors as $ge):?><div>• <?=htmlspecialchars($ge)?></div><?php endforeach;?><?php endif;?>
             <?php if(!empty($fieldErrors)):?><br><span class="warning" data-i18n="field_errors">⚠ Ошибки полей:</span><?php foreach($fieldErrors as $fe):?><div>• <?=htmlspecialchars(is_array($fe)?json_encode($fe,JSON_UNESCAPED_UNICODE):$fe)?></div><?php endforeach;?><?php endif;?>
             <?php if(empty($art)):?><br><span>Нет ответа для данной статьи</span><?php endif;?>
             </div>
-        <?php $summaryErrors++; else: ?>
+            <?php endif; ?>
+        <?php else: ?>
             <div class="result-ok"><span class="success" data-i18n="<?=$isAdded?'article_created':'article_updated'?>">✓ Статья <?=$action2?> (ID: <?=$respId?>)</span>
             <?php if($ba['multilangid']):?><br><span class="warning">🔗 multilangid: <?=htmlspecialchars($ba['multilangid'])?></span><?php endif;?>
             <?php if(!empty($skipFields)):?><br><span class="warning" data-i18n="skipped_fields">⚠ Пропущенные поля:</span><?php foreach($skipFields as $fk=>$fv):?><div><?=htmlspecialchars($fk)?>: <?=htmlspecialchars(is_array($fv)?json_encode($fv,JSON_UNESCAPED_UNICODE):$fv)?></div><?php endforeach;?><?php endif;?>
@@ -1013,14 +1059,40 @@ elseif($httpCode>=200&&$httpCode<300&&is_array($respData)):
             <details open><summary data-i18n="verification_title">🔍 Верификация</summary><div class="meta-grid">
             <span class="key" data-i18n="status_label">статус:</span><span class="val"><span class="success"><span data-i18n="article_saved">✓ Данные сохранены успешно</span><?php if(!empty($respId)):?> (ID: <?=$respId?>)<?php endif;?></span></span>
             </div></details>
-        <?php $summarySuccess++; endif;
+        <?php if ($isAdded) $summaryCreated++; else $summaryUpdated++; endif;
         $allResultsHtml[$ba['idx']] = ob_get_clean();
     endforeach;
     ?>
     <div class="result-summary" style="padding:12px 16px;margin:10px 0;background:#1a1a2e;border-radius:8px;border:1px solid #0f3460;">
-        <span style="color:#4caf50;font-weight:700;">✅ Успешно отправлено: <?=$summarySuccess?></span>
+        <span style="color:#4caf50;font-weight:700;">✅ Создано: <?=$summaryCreated?></span>
+        <span style="color:#00d4ff;font-weight:700;margin-left:20px;">📝 Обновлено: <?=$summaryUpdated?></span>
         <span style="color:#f44336;font-weight:700;margin-left:20px;">❌ Ошибок: <?=$summaryErrors?></span>
+        <span style="color:#888;font-weight:700;margin-left:20px;">⏭ Пропущено (существуют): <?=$summarySkippedExist?></span>
     </div>
+    <script>
+    (function(){
+        var m = '✅ Создано: <?=$summaryCreated?> | 📝 Обновлено: <?=$summaryUpdated?>';
+        if(<?=$summaryErrors?>>0) m += ' | ❌ Ошибок: <?=$summaryErrors?>';
+        if(<?=$summarySkippedExist?>>0) m += ' | ⏭ Пропущено: <?=$summarySkippedExist?>';
+        var t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#16213e;border:2px solid #0f3460;border-radius:10px;padding:14px 20px;color:#e0e0e0;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5);max-width:400px;line-height:1.5;';
+        t.innerHTML = '<strong style="color:#00d4ff;">📊 Экспорт завершён</strong><br>' + m;
+        document.body.appendChild(t);
+        setTimeout(function(){ t.style.transition = 'opacity 1s'; t.style.opacity = '0'; setTimeout(function(){ t.remove(); },1000); }, 6000);
+    })();
+    </script>
+    <?php if (!empty($errorDetails)): ?>
+    <details style="margin:10px 0;background:#2a1a1a;border:1px solid #f44336;border-radius:8px;padding:12px;">
+        <summary style="color:#f44336;font-weight:600;cursor:pointer;">❌ Детали ошибок (<?=count($errorDetails)?>)</summary>
+        <?php foreach($errorDetails as $ed):?><div style="padding:4px 0;font-size:12px;color:#e0e0e0;">• <?=htmlspecialchars($ed)?></div><?php endforeach;?>
+    </details>
+    <?php endif; ?>
+    <?php if (!empty($skippedExistDetails)): ?>
+    <details style="margin:10px 0;background:#1a2a1a;border:1px solid #888;border-radius:8px;padding:12px;">
+        <summary style="color:#888;font-weight:600;cursor:pointer;">⏭ Пропущено — уже существуют (<?=count($skippedExistDetails)?>)</summary>
+        <?php foreach($skippedExistDetails as $sd):?><div style="padding:4px 0;font-size:12px;color:#e0e0e0;">• <?=htmlspecialchars($sd)?></div><?php endforeach;?>
+    </details>
+    <?php endif; ?>
     <script>
     (function(){
         var results = <?=json_encode($allResultsHtml, JSON_UNESCAPED_UNICODE)?>;
@@ -1031,7 +1103,7 @@ elseif($httpCode>=200&&$httpCode<300&&is_array($respData)):
     })();
     </script>
     <?php
-    $created += $summarySuccess; $success += $summarySuccess; $errors += $summaryErrors;
+    $created += $summaryCreated; $updated += $summaryUpdated; $success += ($summaryCreated + $summaryUpdated); $errors += $summaryErrors;
     // Show full API response
     if ($respData): ?>
     <details><summary data-i18n="api_response">📬 Ответ API</summary><div class="resp-block"><?=htmlspecialchars(json_encode($respData,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES))?></div></details>
