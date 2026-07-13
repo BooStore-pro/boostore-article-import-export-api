@@ -624,21 +624,32 @@ $pageQueryStr = htmlspecialchars(http_build_query($pageQp));
 <div style="background:#1a3a1a;border:1px solid #ff9800;border-radius:6px;padding:10px 14px;margin-bottom:26px;font-size:12px;"><span class="warning"><span data-i18n="auto_fix_title">⚡ Авто-исправление по эталону</span> (<?=htmlspecialchars($refLang)?>):</span>
 <?php foreach($fixes as $f):?><div style="margin:3px 0;color:#e0e0e0;">• <?=htmlspecialchars($f)?></div><?php endforeach;?></div>
 <?php endif;?>
+<?php if(!empty($descBad)):?>
+<div style="background:#3e2723;border:1px solid #ff9800;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+<div style="color:#ffcc80;font-weight:600;font-size:14px;margin-bottom:8px;">⚠ Разный размер контента</div>
+<div style="font-size:12px;color:#e0e0e0;margin-bottom:8px;">Статьи одной группы (одинаковый slug) имеют разный размер описания (расхождение > 50%):</div>
+<table style="width:100%;font-size:12px;border-collapse:collapse;"><tr style="color:#ff9800;"><th style="padding:4px 8px;text-align:left;">slug</th><th style="padding:4px 8px;text-align:left;">мин</th><th style="padding:4px 8px;text-align:left;">макс</th><th style="padding:4px 8px;text-align:left;">статьи</th></tr>
+<?php foreach($descBad as $dg=>$dd):?>
+<tr style="border-top:1px solid #555;"><td style="padding:4px 8px;"><?=htmlspecialchars($dg)?></td><td style="padding:4px 8px;"><?=$dd['min']?></td><td style="padding:4px 8px;"><?=$dd['max']?></td><td style="padding:4px 8px;"><?php $parts=[];foreach($dd['arts'] as $da){$parts[]='['.$da['language'].'] '.basename($da['path']);}echo htmlspecialchars(implode(', ',$parts));?></td></tr>
+<?php endforeach;?>
+</table></div>
+<?php endif;?>
 <div class="expand-all"><button onclick="toggleAll(true)" style="background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;padding:5px 14px;cursor:pointer;" data-i18n="expand_all">▸ РАСКРЫТЬ ВСЕ</button>
 <button onclick="toggleAll(false)" style="background:#0f3460;color:#888;border:1px solid #888;border-radius:4px;padding:5px 14px;cursor:pointer;" data-i18n="collapse_all">▾ СКРЫТЬ ВСЕ</button></div><br/>
 
 
 
 
-<?php foreach($groups as $gs=>$garts):
+<?php $descBad=[]; foreach($groups as $gs=>$garts):
 $cnt=count($garts);$allOk=true;$checks=[];$first=$garts[0];
 foreach(['multilangid','planned','status','datestamp'] as $f){$v=array_unique(array_map(function($x)use($f){return (string)$x[$f];},$garts));$ok=count($v)===1;if(!$ok)$allOk=false;$checks[$f]=['ok'=>$ok,'vals'=>$v];}
+$dl=array_map(function($x){return(int)$x['descLen'];},$garts);$dmin=min($dl);$dmax=max($dl);$dok=$dmin*2>=$dmax;if(!$dok)$allOk=false;$checks['descLen']=['ok'=>$dok,'vals'=>['min:'.$dmin,'max:'.$dmax]];if(!$dok)$descBad[$gs]=['min'=>$dmin,'max'=>$dmax,'arts'=>$garts];
 $gst=$allOk?'success':'error';
 ?>
 <details class="summary-card"><summary><span><span class="<?=$gst?>">📁 <?=htmlspecialchars($gs?:'—')?></span> <span style="color:#888;font-size:12px;"><span data-i18n="languages_count"><?=$cnt?> языка(ов)</span></span></span><span style="color:#888;font-size:11px;"><span class="arrow">▶</span></span></summary>
 <div class="card-body"><div style="font-size:13px;margin-bottom:12px;padding:10px;background:#0d1b2a;border-radius:6px;"><div style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:12px;">
-<?php foreach(['multilangid','planned','status','datestamp'] as $f):$c=$checks[$f];?>
-<span class="key"><?=$f?>:</span><span class="val"><?php if($c['ok']):?><span class="success">✓ <?=htmlspecialchars(implode(', ',$c['vals']))?></span><?php else:?><span class="error"><span data-i18n="discrepancy">✗ РАСХОЖДЕНИЕ:</span> <?=htmlspecialchars(implode(' | ',$c['vals']))?></span><?php endif;?></span>
+<?php foreach(['multilangid','planned','status','datestamp','descLen'] as $f):$c=$checks[$f];?>
+<span class="key"><?=$f==='descLen'?'content':$f?>:</span><span class="val"><?php if($c['ok']):?><span class="success">✓ <?=htmlspecialchars(implode(', ',$c['vals']))?></span><?php else:?><span class="error"><span data-i18n="discrepancy">✗ РАСХОЖДЕНИЕ:</span> <?=htmlspecialchars(implode(' | ',$c['vals']))?></span><?php endif;?></span>
 <?php endforeach;?></div></div>
 <?php foreach($garts as $a):?>
 <details class="sub-article"><summary><span><span class="num">#<?=$a['id']?></span> [<?=$a['language']?>] <?=htmlspecialchars($a['path'])?></span><span style="color:#888;font-size:10px;">▶</span></summary>
