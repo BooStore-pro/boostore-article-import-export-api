@@ -14,47 +14,34 @@ if (!file_exists($configFile)) {
 // ===================================================================
 // Инструкция: https://boostore.pro/ru/docs/api-integration/#hotengine-CommerceAPI
 // ===================================================================
-
-// Ключ доступа API (Consumer Secret)
-\$AUTH_KEY = '';
-
-// Домен сайта на платформе Boostore.pro
-\$API_DOMAIN = 'site.boostore.pro';
-\$API_URL = 'https://' . \$API_DOMAIN . '/api/commerce/blog/articles';
-
-// Разрешенные категории (category_id => имя категории). Пусто = все
-\$ALLOWED_CATEGORIES = [];
-
-// === ПАРАМЕТРЫ СТРУКТУРЫ ПАПОК ===
-\$PLANNED_SEPARATE_FOLDER = false;
-\$CATEGORY_FOLDER = false;
-
-// === НАСТРОЙКИ СТАТЕЙ ПРИ ПУБЛИКАЦИИ ===
-\$STATUS_MODE = '';
-\$STATUS_OVERRIDE = 1;
-\$DATE_MODE = '';
-\$DATE_FIXED = '';
-\$DATE_OFFSET_BASE = '';
-\$DATE_OFFSET_DAYS = 1;
-\$OVERRIDE_PLANNED = '';
-\$EXPORT_ARTICLE_ID = false;   // передавать ID статьи
-\$EXPORT_CATEGORY_ID = false;  // передавать ID категории
-\$EXPORT_CATEGORY_NAME = true; // передавать имя категории (по умолчанию)
-
-// Сколько статей загружать за один запрос при экспорте (макс 2000)
-\$PER_PAGE = 200;
-
-// Сколько статей отправлять за один раз при импорте
-\$SEND_BATCH_LIMIT = 200;
-
-// Язык эталонной статьи для авто-исправления при экспорте
-\$REFERENCE_LANG = 'ru';
-
-// Какие поля исправлять по RU-эталону при экспорте
-\$FIX_MULTILANGID = false;
-\$FIX_PLANNED = false;
-\$FIX_STATUS = false;
-\$FIX_DATESTAMP = false;
+//
+// === МНОГОСАЙТОВОСТЬ ===
+// Каждый сайт = отдельная папка с собственными настройками
+\$SITES = [
+    'site.boostore.pro' => [
+        'key' => '',
+        'allowed_categories' => [],
+        'planned_separate_folder' => false,
+        'category_folder' => false,
+        'status_mode' => '',
+        'status_override' => 1,
+        'date_mode' => '',
+        'date_fixed' => '',
+        'date_offset_base' => '',
+        'date_offset_days' => 1,
+        'override_planned' => '',
+        'export_article_id' => false,
+        'export_category_id' => false,
+        'export_category_name' => true,
+        'per_page' => 200,
+        'send_batch_limit' => 200,
+        'reference_lang' => 'ru',
+        'fix_multilangid' => false,
+        'fix_planned' => false,
+        'fix_status' => false,
+        'fix_datestamp' => false,
+    ],
+];
 ";
     file_put_contents($configFile, $defaultConfig);
     chmod($configFile, 0644);
@@ -62,19 +49,175 @@ if (!file_exists($configFile)) {
 
 require $configFile;
 
+// Auto-migrate old config format (single AUTH_KEY + API_DOMAIN → $SITES array)
+if (!isset($SITES) && isset($AUTH_KEY)) {
+    $SITES = [rtrim($API_DOMAIN ?? 'site.boostore.pro', '/') => ['key' => $AUTH_KEY ?? '']];
+    $cfgContent = file_get_contents($configFile);
+    $sitesExport = sitesExport($SITES);
+    $cfgContent = replaceSitesInConfig($cfgContent, $sitesExport);
+    file_put_contents($configFile, $cfgContent);
+    require $configFile;
+}
+if (!isset($SITES)) $SITES = ['site.boostore.pro' => ['key' => '']];
+
+// Determine current site from GET param, fallback to first in $SITES
+$currentSite = '';
+if (!empty($_GET['site']) && isset($SITES[$_GET['site']])) {
+    $currentSite = $_GET['site'];
+} else {
+    $siteKeys = array_keys($SITES);
+    $currentSite = $siteKeys[0] ?? '';
+}
+$AUTH_KEY = $SITES[$currentSite]['key'] ?? '';
+$API_DOMAIN = $currentSite;
+$API_URL = 'https://' . $currentSite . '/api/commerce/blog/articles';
+
+// Extract per-site config into global variables (backward-compatible)
+$siteCfg = $SITES[$currentSite] ?? [];
+$ALLOWED_CATEGORIES  = $siteCfg['allowed_categories'] ?? ($ALLOWED_CATEGORIES ?? []);
+$PLANNED_SEPARATE_FOLDER = $siteCfg['planned_separate_folder'] ?? ($PLANNED_SEPARATE_FOLDER ?? false);
+$CATEGORY_FOLDER     = $siteCfg['category_folder'] ?? ($CATEGORY_FOLDER ?? false);
+$STATUS_MODE         = $siteCfg['status_mode'] ?? ($STATUS_MODE ?? '');
+$STATUS_OVERRIDE     = $siteCfg['status_override'] ?? ($STATUS_OVERRIDE ?? 1);
+$DATE_MODE           = $siteCfg['date_mode'] ?? ($DATE_MODE ?? '');
+$DATE_FIXED          = $siteCfg['date_fixed'] ?? ($DATE_FIXED ?? '');
+$DATE_OFFSET_BASE    = $siteCfg['date_offset_base'] ?? ($DATE_OFFSET_BASE ?? '');
+$DATE_OFFSET_DAYS    = $siteCfg['date_offset_days'] ?? ($DATE_OFFSET_DAYS ?? 1);
+$OVERRIDE_PLANNED    = $siteCfg['override_planned'] ?? ($OVERRIDE_PLANNED ?? '');
+$EXPORT_ARTICLE_ID   = $siteCfg['export_article_id'] ?? ($EXPORT_ARTICLE_ID ?? false);
+$EXPORT_CATEGORY_ID  = $siteCfg['export_category_id'] ?? ($EXPORT_CATEGORY_ID ?? false);
+$EXPORT_CATEGORY_NAME = $siteCfg['export_category_name'] ?? ($EXPORT_CATEGORY_NAME ?? true);
+$PER_PAGE            = $siteCfg['per_page'] ?? ($PER_PAGE ?? 200);
+$SEND_BATCH_LIMIT    = $siteCfg['send_batch_limit'] ?? ($SEND_BATCH_LIMIT ?? 200);
+$REFERENCE_LANG      = $siteCfg['reference_lang'] ?? ($REFERENCE_LANG ?? 'ru');
+$FIX_MULTILANGID     = $siteCfg['fix_multilangid'] ?? ($FIX_MULTILANGID ?? false);
+$FIX_PLANNED         = $siteCfg['fix_planned'] ?? ($FIX_PLANNED ?? false);
+$FIX_STATUS          = $siteCfg['fix_status'] ?? ($FIX_STATUS ?? false);
+$FIX_DATESTAMP       = $siteCfg['fix_datestamp'] ?? ($FIX_DATESTAMP ?? false);
+
+// Site directory (parent folder named after domain)
+$SITE_DIR = __DIR__ . DIRECTORY_SEPARATOR . $currentSite;
+$BLOG_DIR = $SITE_DIR . DIRECTORY_SEPARATOR . 'blog';
+// Ensure site directory + blog subfolder exist
+if (!is_dir($BLOG_DIR)) { @mkdir($BLOG_DIR, 0777, true); }
+
+// Helper: export $SITES array in short array syntax (full per-site config)
+function sitesExport($sites) {
+    $c = "[\n";
+    foreach ($sites as $sDomain => $sCfg) {
+        $c .= "    ".var_export($sDomain, true)." => [\n";
+        $c .= "        'key' => ".var_export($sCfg['key'] ?? '', true).",\n";
+        $cats = $sCfg['allowed_categories'] ?? [];
+        if (!empty($cats)) {
+            $c .= "        'allowed_categories' => [\n";
+            foreach ($cats as $cid => $cname) {
+                $c .= "            ".var_export($cid, true)." => ".var_export($cname, true).",\n";
+            }
+            $c .= "        ],\n";
+        } else {
+            $c .= "        'allowed_categories' => [],\n";
+        }
+        $c .= "        'planned_separate_folder' => ".($sCfg['planned_separate_folder'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'category_folder' => ".($sCfg['category_folder'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'status_mode' => ".var_export($sCfg['status_mode'] ?? '', true).",\n";
+        $c .= "        'status_override' => ".(int)($sCfg['status_override'] ?? 1).",\n";
+        $c .= "        'date_mode' => ".var_export($sCfg['date_mode'] ?? '', true).",\n";
+        $c .= "        'date_fixed' => ".var_export($sCfg['date_fixed'] ?? '', true).",\n";
+        $c .= "        'date_offset_base' => ".var_export($sCfg['date_offset_base'] ?? '', true).",\n";
+        $c .= "        'date_offset_days' => ".(int)($sCfg['date_offset_days'] ?? 1).",\n";
+        $c .= "        'override_planned' => ".var_export($sCfg['override_planned'] ?? '', true).",\n";
+        $c .= "        'export_article_id' => ".($sCfg['export_article_id'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'export_category_id' => ".($sCfg['export_category_id'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'export_category_name' => ".($sCfg['export_category_name'] ?? true ? 'true' : 'false').",\n";
+        $c .= "        'per_page' => ".(int)($sCfg['per_page'] ?? 200).",\n";
+        $c .= "        'send_batch_limit' => ".(int)($sCfg['send_batch_limit'] ?? 200).",\n";
+        $c .= "        'reference_lang' => ".var_export($sCfg['reference_lang'] ?? 'ru', true).",\n";
+        $c .= "        'fix_multilangid' => ".($sCfg['fix_multilangid'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'fix_planned' => ".($sCfg['fix_planned'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'fix_status' => ".($sCfg['fix_status'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'fix_datestamp' => ".($sCfg['fix_datestamp'] ?? false ? 'true' : 'false').",\n";
+        $c .= "    ],\n";
+    }
+    return $c . "]\n";
+}
+// Helper: replace or insert $SITES definition in config content
+function replaceSitesInConfig($content, $newExport) {
+    $replaced = false;
+    $result = preg_replace('/\$SITES\s*=\s*\[.*?\];/s', "\$SITES = {$newExport};", $content, -1, $count);
+    if ($count > 0) $replaced = true;
+    if (!$replaced) {
+        $result = preg_replace('/\$SITES\s*=\s*array\s*\(.*?\);/s', "\$SITES = {$newExport};", $content, -1, $count);
+        if ($count > 0) $replaced = true;
+    }
+    if (!$replaced) {
+        // No $SITES found — append after the opening <?php line
+        $result = preg_replace('/^(<\?php)/m', "$1\n\n\$SITES = {$newExport};\n", $content, 1, $count);
+        if ($count > 0) $replaced = true;
+        $result = $replaced ? $result : "<?php\n\n\$SITES = {$newExport};\n\n" . $content;
+    }
+    return $result;
+}
+
 $action = $_GET['action'] ?? '';
 $apiKeyMissing = empty($AUTH_KEY);
 
+// Handle add_site action: add new site to $SITES and save config, then redirect
+if ($action === 'add_site' && !empty($_GET['site'])) {
+    $newSite = trim($_GET['site']);
+    if (!isset($SITES[$newSite])) {
+        $apiKey = isset($_GET['api_key']) ? trim($_GET['api_key']) : '';
+        $SITES[$newSite] = ['key' => $apiKey];
+        $sitesExport = sitesExport($SITES);
+        $cfgContent = file_get_contents($configFile);
+        $cfgContent = replaceSitesInConfig($cfgContent, $sitesExport);
+        file_put_contents($configFile, $cfgContent);
+    }
+    $params = $_GET;
+    unset($params['action']);
+    unset($params['api_key']);
+    $params['added'] = '1';
+    header('Location: ?' . http_build_query($params));
+    exit;
+}
+
+// Handle delete_site action: remove site from $SITES and save config
+if ($action === 'delete_site' && !empty($_GET['site'])) {
+    $delSite = trim($_GET['site']);
+    if (isset($SITES[$delSite])) {
+        unset($SITES[$delSite]);
+        if (empty($SITES)) {
+            $SITES = ['site.boostore.pro' => ['key' => '']];
+        }
+        $sitesExport = sitesExport($SITES);
+        $cfgContent = file_get_contents($configFile);
+        $cfgContent = replaceSitesInConfig($cfgContent, $sitesExport);
+        file_put_contents($configFile, $cfgContent);
+    }
+    $firstSite = array_key_first($SITES);
+    header('Location: ?site=' . urlencode($firstSite));
+    exit;
+}
 
 
 
+
+$siteOptions = '';
+foreach ($SITES as $sDomain => $sCfg) {
+    $sel = ($sDomain === $currentSite) ? ' selected' : '';
+    $siteOptions .= '<option value="'.htmlspecialchars($sDomain).'"'.$sel.'>'.htmlspecialchars($sDomain).'</option>';
+}
+$siteOptions .= '<option value="__add__" style="color:#ff9800;font-weight:700;" data-i18n="add_site_option">+ Добавить сайт</option>';
 $header = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
 <h1 style="margin:0 0 20px 0;">▸ <span data-i18n="title">Управление статьями блога — Boostore.pro</span></h1>
-<div><select id="lang_switcher" onchange="applyLang(this.value)" style="padding:4px 8px;border:1px solid #0f3460;border-radius:4px;background:#0d1b2a;color:#e0e0e0;font-size:12px;width:auto;">
+<div style="display:flex;gap:8px;align-items:center;">
+<select id="site_switcher" onchange=\'var s=this.value,p,a,b=location.href.split("?")[0];if(s==="__add__"){var d=prompt("Введите домен нового сайта (например: new-site.boostore.pro):");if(d&&(d=d.trim())&&/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(d)){location.href=b+"?site="+encodeURIComponent(d)+"&action=add_site";}else{this.value="'.htmlspecialchars($currentSite).'";}return;}location.href=b+"?site="+encodeURIComponent(s);\' style="padding:4px 8px;border:1px solid #0f3460;border-radius:4px;background:#0d1b2a;color:#00d4ff;font-size:12px;width:auto;font-weight:600;">
+'.$siteOptions.'
+</select>
+<select id="lang_switcher" onchange="applyLang(this.value)" style="padding:4px 8px;border:1px solid #0f3460;border-radius:4px;background:#0d1b2a;color:#e0e0e0;font-size:12px;width:auto;">
 <option value="ru" data-i18n="lang_ru">Русский</option><option value="en" data-i18n="lang_en">English</option><option value="ua" data-i18n="lang_ua">Українська</option>
 </select></div>
 </div> 
-<div class="meta-info"><a href="https://boostore.pro/ru/docs/api-integration/#hotengine-CommerceAPI" target="_blank" data-i18n="api_docs">API Docs</a> &nbsp;|&nbsp; <span data-i18n="version">v2.0</span> &nbsp;|&nbsp; '.date('Y-m-d H:i:s').'</div>';
+<div class="meta-info"><a href="https://boostore.pro/ru/docs/api-integration/#hotengine-CommerceAPI" target="_blank" data-i18n="api_docs">API Docs</a> &nbsp;|&nbsp; <span data-i18n="version">v2.0</span> &nbsp;|&nbsp; '.date('Y-m-d H:i:s').' &nbsp;|&nbsp; <span data-i18n="site_label">Сайт:</span> <strong>'.htmlspecialchars($currentSite).'</strong></div>';
 
 
 
@@ -102,10 +245,10 @@ if (!isset($_GET['confirm'])): ?>
 <?php echo $header; ?>
 <div class="plaque">
 <span data-i18n="plaque_import">▸ <strong>Настройки импорта</strong> — получение статей с API</span>
-<span><a href="?" style="padding:6px 16px;background:transparent;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a></span>
+<span><a href="?site=<?=urlencode($currentSite)?>" style="padding:6px 16px;background:transparent;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a></span>
 </div>
 <form method="get" action="?" style="margin-top:16px;">
-<input type="hidden" name="action" value="get"><input type="hidden" name="confirm" value="1">
+<input type="hidden" name="action" value="get"><input type="hidden" name="confirm" value="1"><input type="hidden" name="site" value="<?=htmlspecialchars($currentSite)?>">
 <div class="card">
 <div class="form-row"><div class="field" style="max-width:150px;"><label data-i18n="per_page_import">Статей за запрос</label><input type="number" name="per_page" value="<?=$getPerPage?>" min="1" max="2000"></div>
 <div class="field" style="max-width:180px;"><label data-i18n="date_from">Дата с</label><input type="date" name="date_after" value="<?=htmlspecialchars($_GET['date_after']??'')?>" placeholder="ГГГГ-ММ-ДД" data-i18n-placeholder="date_format"></div>
@@ -142,8 +285,42 @@ if (!isset($_GET['confirm'])): ?>
 <button type="button" onclick="var d=document.getElementById('get-cats'),i=d.children.length;d.innerHTML+='<div class=\'cat-row\'><input type=\'text\' name=\'cat['+i+'][id]\' placeholder=\'ID\' data-i18n-placeholder=\'cat_id_placeholder\' style=\'max-width:80px;\'><input type=\'text\' name=\'cat['+i+'][name]\' placeholder=\'имя категории\' data-i18n-placeholder=\'cat_name_placeholder\'><button type=\'button\' onclick=\'this.parentElement.remove()\' class=\'btn-sm\'>✕</button></div>';" style="padding:4px 12px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;cursor:pointer;font-size:12px;margin-top:4px;" data-i18n="btn_add_cat">+ Добавить категорию</button>
 <input type="hidden" name="cats_configured" value="1">
 </div>
+<div class="card">
+  <h3 style="margin:0 0 10px;font-size:15px;color:#4dc9f6;" data-i18n="fix_import_title">🔧 Исправление по эталону</h3>
+  <p style="font-size:11px;color:#888;margin-bottom:10px;" data-i18n="fix_import_desc">Синхронизировать поля с эталонной статьёй (по slug) после сохранения</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+    <div>
+      <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="ref_lang_label">🌐 Язык эталонной статьи</label>
+      <select name="import_ref_lang" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#0d1b2a;color:#e0e0e0;">
+        <option value="be"<?=($_GET['import_ref_lang']??$REFERENCE_LANG)==='be'?' selected':''?> data-i18n="ref_lang_be">Белорусский (be)</option>
+        <option value="en"<?=($_GET['import_ref_lang']??$REFERENCE_LANG)==='en'?' selected':''?> data-i18n="ref_lang_en">English (en)</option>
+        <option value="ru"<?=($_GET['import_ref_lang']??$REFERENCE_LANG)==='ru'?' selected':''?> data-i18n="ref_lang_ru">Русский (ru)</option>
+        <option value="ua"<?=($_GET['import_ref_lang']??$REFERENCE_LANG)==='ua'?' selected':''?> data-i18n="ref_lang_ua">Українська (ua)</option>
+        <option value="pl"<?=($_GET['import_ref_lang']??$REFERENCE_LANG)==='pl'?' selected':''?> data-i18n="ref_lang_pl">Polski (pl)</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+      <input type="hidden" name="import_fix_multilangid" value="0">
+      <input type="checkbox" name="import_fix_multilangid" value="1"<?=(isset($_GET['import_fix_multilangid'])?!empty($_GET['import_fix_multilangid']):$FIX_MULTILANGID)?' checked':''?>> multilangid
+    </label>
+    <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+      <input type="hidden" name="import_fix_planned" value="0">
+      <input type="checkbox" name="import_fix_planned" value="1"<?=(isset($_GET['import_fix_planned'])?!empty($_GET['import_fix_planned']):$FIX_PLANNED)?' checked':''?>> planned
+      </label>
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="import_fix_status" value="0">
+        <input type="checkbox" name="import_fix_status" value="1"<?=(isset($_GET['import_fix_status'])?!empty($_GET['import_fix_status']):$FIX_STATUS)?' checked':''?>> status
+      </label>
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="import_fix_datestamp" value="0">
+        <input type="checkbox" name="import_fix_datestamp" value="1"<?=(isset($_GET['import_fix_datestamp'])?!empty($_GET['import_fix_datestamp']):$FIX_DATESTAMP)?' checked':''?>> datestamp
+    </label>
+  </div>
+</div>
 <button type="submit" class="btn btn-primary" data-i18n="btn_get">📥 НАЧАТЬ ИМПОРТ</button>
-<a href="?" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;margin-left:8px;" data-i18n="back_home">← На главную</a>
+<a href="?site=<?=urlencode($currentSite)?>" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;margin-left:8px;" data-i18n="back_home">← На главную</a>
 </form>
 <script>
 var _lang='ru';try{_lang=localStorage.getItem('boostore_lang')||navigator.language.slice(0,2);localStorage.setItem('boostore_lang',_lang);}catch(e){}
@@ -268,7 +445,7 @@ if ($articles !== null && !$fetchError) {
         $articles = array_values($articles);
     }
     $total = count($articles);
-    $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'blog';
+    $baseDir = $BLOG_DIR;
     foreach ($articles as $a) {
         $catId = (int)($a['category_id'] ?? 0);
         if (!empty($ALLOWED_CATEGORIES) && !isset($ALLOWED_CATEGORIES[$catId])) { $skipped++; continue; }
@@ -299,7 +476,7 @@ $slug = preg_replace('/-(ua|pl|en|ru)$/i', '', $slug);
         $safeName = preg_replace('/[^a-zA-Z0-9_-]/','',$name); $safeName = trim($safeName,'-_');
         if ($safeName==='') $safeName = (string)$id;
         $filename = $id.'-'.$safeName.'-'.$language.'.html';
-        $filepath = $dirPath.$filename; $relPath = 'blog'.DIRECTORY_SEPARATOR.$subDir.$filename;
+        $filepath = $dirPath.$filename; $relPath = $currentSite.DIRECTORY_SEPARATOR.'blog'.DIRECTORY_SEPARATOR.$subDir.$filename;
         $h = '<!DOCTYPE html>'."\n".'<html lang="'.htmlspecialchars($language).'">'."\n".'<head>'."\n".'<meta charset="UTF-8">'."\n".'<title>'.htmlspecialchars($title).'</title>'."\n";
         $metaList = [
             'id'=>$id,'name'=>$name,'slug'=>$slug,'title'=>$title,'meta_title'=>$metaTitle,
@@ -319,17 +496,22 @@ $slug = preg_replace('/-(ua|pl|en|ru)$/i', '', $slug);
             'datestamp'=>$datestamp,'dateLastedit'=>$dateLastedit,'multilangid'=>$multilangid];
     }
 }
-// Auto-fix by RU
+// Auto-fix by RU (with GET overrides from import form)
 $fixes = []; $fixGroups = [];
 foreach ($savedArticles as $a) { $fixGroups[$a['slug']][] = $a; }
+$importRefLang = $_GET['import_ref_lang'] ?? $REFERENCE_LANG;
+$importFixMultilangid = isset($_GET['import_fix_multilangid']) ? !empty($_GET['import_fix_multilangid']) : $FIX_MULTILANGID;
+$importFixPlanned = isset($_GET['import_fix_planned']) ? !empty($_GET['import_fix_planned']) : $FIX_PLANNED;
+$importFixStatus = isset($_GET['import_fix_status']) ? !empty($_GET['import_fix_status']) : $FIX_STATUS;
+$importFixDatestamp = isset($_GET['import_fix_datestamp']) ? !empty($_GET['import_fix_datestamp']) : $FIX_DATESTAMP;
 $fixFields = [];
-if ($FIX_MULTILANGID) $fixFields[] = 'multilangid';
-if ($FIX_PLANNED) $fixFields[] = 'planned';
-if ($FIX_STATUS) $fixFields[] = 'status';
-if ($FIX_DATESTAMP) $fixFields[] = 'datestamp';
+if ($importFixMultilangid) $fixFields[] = 'multilangid';
+if ($importFixPlanned) $fixFields[] = 'planned';
+if ($importFixStatus) $fixFields[] = 'status';
+if ($importFixDatestamp) $fixFields[] = 'datestamp';
 foreach ($fixGroups as $slug=>$arts) {
     if (count($arts)<2) continue;
-    $refLang = $REFERENCE_LANG ?: 'ru';
+    $refLang = $importRefLang ?: 'ru';
 $ru = null; foreach ($arts as $a) { if ($a['language']===$refLang) { $ru=$a; break; } }
     if (!$ru) continue;
     foreach ($arts as $a) {
@@ -420,7 +602,7 @@ $pageQueryStr = htmlspecialchars(http_build_query($pageQp));
 <?php endif; ?>
 <?php if($fixes):?>
 <br/><div class="meta-info">
-<a href="?action=get" class="btn btn-sm" style="padding:5px 14px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_to_settings">← Назад к настройкам</a> &nbsp;|&nbsp; <a href="?" style="font-size:13px;" data-i18n="back_home">На главную</a> &nbsp;</div><br/>
+<a href="?action=get&site=<?=urlencode($currentSite)?>" class="btn btn-sm" style="padding:5px 14px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_to_settings">← Назад к настройкам</a> &nbsp;|&nbsp; <a href="?site=<?=urlencode($currentSite)?>" style="font-size:13px;" data-i18n="back_home">На главную</a> &nbsp;</div><br/>
 <div style="background:#1a3a1a;border:1px solid #ff9800;border-radius:6px;padding:10px 14px;margin-bottom:26px;font-size:12px;"><span class="warning"><span data-i18n="auto_fix_title">⚡ Авто-исправление по эталону</span> (<?=htmlspecialchars($refLang)?>):</span>
 <?php foreach($fixes as $f):?><div style="margin:3px 0;color:#e0e0e0;">• <?=htmlspecialchars($f)?></div><?php endforeach;?></div>
 <?php endif;?>
@@ -459,7 +641,7 @@ $gst=$allOk?'success':'error';
 (function(){
     var m = '📥 Загружено: <?=$saved?> из <?=$totalItems?:$total?>';
     if(<?=$skipped?>>0) m += ' | Пропущено: <?=$skipped?>';
-    <?php if($fixes):?>m += ' | Исправлено: <?=count($fixes)?>'<?php endif;?>
+    <?php if($fixes):?>m += ' | Исправлено: <?=count($fixes)?>';<?php endif;?>
     var t = document.createElement('div');
     t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#16213e;border:2px solid #0f3460;border-radius:10px;padding:14px 20px;color:#e0e0e0;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5);max-width:400px;line-height:1.5;';
     t.innerHTML = '<strong style="color:#00d4ff;">📊 Импорт завершён</strong><br>' + m;
@@ -468,7 +650,7 @@ $gst=$allOk?'success':'error';
 })();
 </script>
 <?php endif;?>
-<div style="text-align:center;margin:12px 0;"><a href="?" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_button">← НАЗАД</a></div>
+<div style="text-align:center;margin:12px 0;"><a href="?site=<?=urlencode($currentSite)?>" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_button">← НАЗАД</a></div>
 <script>
 var _lang='ru';try{_lang=localStorage.getItem('boostore_lang')||navigator.language.slice(0,2);localStorage.setItem('boostore_lang',_lang);}catch(e){}
 var _t={ru:{btn_get:'📥 НАЧАТЬ ИМПОРТ',btn_update:'📤 НАЧАТЬ ЭКСПОРТ',back_home:'На главную',back_button:'← НАЗАД',back_to_settings:'← Назад к настройкам',import_results_title:'▸ Импорт статей — получено с API',all_total:'Всего:',articles_count:'статей',loaded_count:'Загружено:',skipped_count:'Пропущено:',page_label:'Страница',from_label:'из',search_label:'Поиск:',fixed_label:'Исправлено:',go_to_page:'Перейти',prev_page:'← Назад (стр.',next_page:'Далее → (стр.',per_page_total:'по',per_page_by:'по',expand_all:'▸ РАСКРЫТЬ ВСЕ',collapse_all:'▾ СКРЫТЬ ВСЕ',auto_fix_title:'⚡ Авто-исправление по эталону',languages_count:'языка(ов)',discrepancy:'✗ РАСХОЖДЕНИЕ:',status_published_short:'1 (опубликовано)',status_hidden_short:'0 (скрыто)',chars_count:'символов',import_complete:'Импорт статей завершён',fetch_error:'✗ Ошибка',verification_warn:'✓ Данные сохранены успешно',lang_ru:'Русский',lang_en:'English',lang_ua:'Українська',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Белорусский (be)',ref_lang_en:'English (en)',ref_lang_ru:'Русский (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Polski (pl)',date_mode_meta:'Из мета-данных (дата из каждой статьи)',date_mode_fixed:'Одна дата для всех статей',date_mode_offset:'Смещение дат (+N дней на статью)',planned_notset:'— не указано (из мета-данных)',planned_0:'0 — не отложенная',planned_1:'1 — отложенная публикация',status_mode_meta:'Из мета-данных (статус из каждой статьи)',status_mode_override:'Переопределить для всех статей'},en:{btn_get:'📥 START IMPORT',btn_update:'📤 START EXPORT',back_home:'Home',back_button:'← BACK',back_to_settings:'← Back to settings',import_results_title:'▸ Articles fetched from API',all_total:'Total:',articles_count:'articles',loaded_count:'Loaded:',skipped_count:'Skipped:',page_label:'Page',from_label:'of',search_label:'Search:',fixed_label:'Fixed:',go_to_page:'Go',prev_page:'← Prev (pg.',next_page:'Next → (pg.',per_page_total:'per',per_page_by:'per',expand_all:'▸ EXPAND ALL',collapse_all:'▾ COLLAPSE ALL',auto_fix_title:'⚡ Auto-fix by reference',languages_count:'language(s)',discrepancy:'✗ DISCREPANCY:',status_published_short:'1 (published)',status_hidden_short:'0 (hidden)',chars_count:'chars',import_complete:'Import complete',fetch_error:'✗ Error',verification_warn:'⚠ Data saved, but length in API response differs (possible formatting differences)',lang_ru:'Russian',lang_en:'English',lang_ua:'Ukrainian',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Belarusian (be)',ref_lang_en:'English (en)',ref_lang_ru:'Russian (ru)',ref_lang_ua:'Ukrainian (ua)',ref_lang_pl:'Polish (pl)',date_mode_meta:'From meta-data (date from each article)',date_mode_fixed:'Single date for all articles',date_mode_offset:'Date offset (+N days per article)',planned_notset:'— not set (from meta-data)',planned_0:'0 — not planned',planned_1:'1 — planned publishing',status_mode_meta:'From meta-data (status from each article)',status_mode_override:'Override for all articles'},ua:{btn_get:'📥 ПОЧАТИ ІМПОРТ',btn_update:'📤 ПОЧАТИ ЕКСПОРТ',back_home:'На головну',back_button:'← НАЗАД',back_to_settings:'← Назад до налаштувань',import_results_title:'▸ Статті отримано з API',all_total:'Всього:',articles_count:'статей',loaded_count:'Завантажено:',skipped_count:'Пропущено:',page_label:'Сторінка',from_label:'з',search_label:'Пошук:',fixed_label:'Виправлено:',go_to_page:'Перейти',prev_page:'← Назад (стор.',next_page:'Далі → (стор.',per_page_total:'по',per_page_by:'по',expand_all:'▸ РОЗГОРНУТИ ВСІ',collapse_all:'▾ ЗГОРНУТИ ВСІ',auto_fix_title:'⚡ Авто-виправлення за еталоном',languages_count:'мова(и)',discrepancy:'✗ РОЗБІЖНІСТЬ:',status_published_short:'1 (опубліковано)',status_hidden_short:'0 (приховано)',chars_count:'символів',import_complete:'Імпорт статей завершено',fetch_error:'✗ Помилка',verification_warn:'⚠ Дані збережено, але довжина у відповіді API не збігається (можливі відмінності у форматуванні)',lang_ru:'Російська',lang_en:'Англійська',lang_ua:'Українська',api_docs:'API Docs',version:'v2.0',ref_lang_be:'Білоруська (be)',ref_lang_en:'Англійська (en)',ref_lang_ru:'Російська (ru)',ref_lang_ua:'Українська (ua)',ref_lang_pl:'Польська (pl)',date_mode_meta:'З мета-даних (дата з кожної статті)',date_mode_fixed:'Одна дата для всіх статей',date_mode_offset:'Зміщення дат (+N днів на статтю)',planned_notset:'— не вказано (з мета-даних)',planned_0:'0 — не відкладена',planned_1:'1 — відкладена публікація',status_mode_meta:'З мета-даних (статус з кожної статті)',status_mode_override:'Перевизначити для всіх статей'}};
@@ -508,7 +690,7 @@ $slugDateMap = [];
 if ($expDateMode === 'offset' && $expDateOffsetBase !== '' && $expDateOffsetDays > 0) {
     $baseTs = dateToTimestamp($expDateOffsetBase);
     if ($baseTs) {
-        $blogDir2 = __DIR__.DIRECTORY_SEPARATOR.'blog';
+        $blogDir2 = $BLOG_DIR;
         if (is_dir($blogDir2)) {
             $rdi2 = new RecursiveDirectoryIterator($blogDir2,RecursiveDirectoryIterator::SKIP_DOTS);
             $rii2 = new RecursiveIteratorIterator($rdi2);
@@ -562,7 +744,7 @@ hr{border:0;border-top:1px solid #0f3460;margin:12px 0}
 <body><div class="wrap"><?php echo $header; ?>
 <div class="plaque">
 <span data-i18n="plaque_export">▸ <strong>Настройки экспорта</strong> — отправка статей на Boostore.pro</span>
-<span><a href="?" style="padding:6px 16px;background:transparent;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a></span>
+<span><a href="?site=<?=urlencode($currentSite)?>" style="padding:6px 16px;background:transparent;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a></span>
 </div>
 <?php if($dryRun):?><div style="margin-bottom:12px;font-size:13px;color:#ff9800;" data-i18n="dryrun_warn">⚡ DRY RUN — запросы не отправляются</div><?php endif;?>
 <?php
@@ -585,6 +767,7 @@ document.addEventListener('DOMContentLoaded',function(){var ls=document.getEleme
   <input type="hidden" name="action" value="update">
   <input type="hidden" name="confirm" value="1">
   <input type="hidden" name="step" value="2">
+  <input type="hidden" name="site" value="<?=htmlspecialchars($currentSite)?>">
   <div>
     <label style="color:#888;font-size:13px;display:block;margin-bottom:6px;" data-i18n="filter_name">Фильтр по имени (slug)</label>
     <div id="search-fields-upd"><input type="text" name="s[]" value="<?=htmlspecialchars($searchFilter ? $searchFilter[0] : '')?>" placeholder="часть имени, например: shopify" data-i18n-placeholder="search_placeholder" style="margin-bottom:4px;padding:7px 10px;border:1px solid #0f3460;border-radius:5px;background:#0d1b2a;color:#e0e0e0;font-size:13px;width:100%;box-sizing:border-box;"></div>
@@ -664,6 +847,41 @@ document.addEventListener('DOMContentLoaded',function(){var ls=document.getEleme
   </div>
   <hr style="border-color:#0f3460;margin:4px 0;">
   <div>
+    <label style="font-size:11px;color:#888;display:block;margin-bottom:6px;" data-i18n="fix_export_title">🔧 Исправление по эталону</label>
+    <div style="font-size:11px;color:#888;margin-bottom:8px;" data-i18n="fix_export_desc">Синхронизировать поля с эталонной статьёй (по slug) при экспорте</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="ref_lang_label">🌐 Язык эталонной статьи</label>
+        <select name="export_ref_lang" style="padding:6px 8px;border:1px solid #0f3460;border-radius:4px;background:#16213e;color:#e0e0e0;">
+          <option value="be"<?=($_GET['export_ref_lang']??$REFERENCE_LANG)==='be'?' selected':''?> data-i18n="ref_lang_be">Белорусский (be)</option>
+          <option value="en"<?=($_GET['export_ref_lang']??$REFERENCE_LANG)==='en'?' selected':''?> data-i18n="ref_lang_en">English (en)</option>
+          <option value="ru"<?=($_GET['export_ref_lang']??$REFERENCE_LANG)==='ru'?' selected':''?> data-i18n="ref_lang_ru">Русский (ru)</option>
+          <option value="ua"<?=($_GET['export_ref_lang']??$REFERENCE_LANG)==='ua'?' selected':''?> data-i18n="ref_lang_ua">Українська (ua)</option>
+          <option value="pl"<?=($_GET['export_ref_lang']??$REFERENCE_LANG)==='pl'?' selected':''?> data-i18n="ref_lang_pl">Polski (pl)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="export_fix_multilangid" value="0">
+        <input type="checkbox" name="export_fix_multilangid" value="1"<?=(isset($_GET['export_fix_multilangid'])?!empty($_GET['export_fix_multilangid']):$FIX_MULTILANGID)?' checked':''?>> multilangid
+      </label>
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="export_fix_planned" value="0">
+        <input type="checkbox" name="export_fix_planned" value="1"<?=(isset($_GET['export_fix_planned'])?!empty($_GET['export_fix_planned']):$FIX_PLANNED)?' checked':''?>> planned
+      </label>
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="export_fix_status" value="0">
+        <input type="checkbox" name="export_fix_status" value="1"<?=(isset($_GET['export_fix_status'])?!empty($_GET['export_fix_status']):$FIX_STATUS)?' checked':''?>> status
+      </label>
+      <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
+        <input type="hidden" name="export_fix_datestamp" value="0">
+        <input type="checkbox" name="export_fix_datestamp" value="1"<?=(isset($_GET['export_fix_datestamp'])?!empty($_GET['export_fix_datestamp']):$FIX_DATESTAMP)?' checked':''?>> datestamp
+      </label>
+    </div>
+  </div>
+  <hr style="border-color:#0f3460;margin:4px 0;">
+  <div>
     <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;" data-i18n="export_fields_label">📋 Поля для экспорта</label>
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
       <label style="font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:3px;">
@@ -700,7 +918,7 @@ document.addEventListener('DOMContentLoaded',function(){var ls=document.getEleme
   </div>
   <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
     <button type="submit" style="padding:10px 24px;background:#00d4ff;color:#1a1a2e;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;" data-i18n="step_forward">➡ ДАЛЕЕ</button>
-    <a href="?" style="padding:7px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a>
+    <a href="?site=<?=urlencode($currentSite)?>" style="padding:7px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_home">← На главную</a>
   </div>
   <script>
   function toggleExpDateFields(){
@@ -719,7 +937,7 @@ document.addEventListener('DOMContentLoaded',function(){var ls=document.getEleme
 
 // === Step 2: File selection (show matching files with checkboxes) ===
 if (isset($_GET['step']) && $_GET['step'] === '2'):
-$blogDir2 = __DIR__.DIRECTORY_SEPARATOR.'blog';
+$blogDir2 = $BLOG_DIR;
 $htmlFiles2 = [];
 if (is_dir($blogDir2)) {
     $rdi2 = new RecursiveDirectoryIterator($blogDir2, RecursiveDirectoryIterator::SKIP_DOTS);
@@ -792,7 +1010,7 @@ h1{font-size:22px;color:#00d4ff;margin-bottom:5px}.meta-info{color:#888;font-siz
 <body><div class="wrap"><?php echo $header; ?>
 <div class="plaque">
 <span data-i18n="step2_header">▸ <strong>Шаг 2</strong> — выберите файлы для экспорта на сайт</span>
-<span><a href="?action=update" style="padding:6px 16px;background:transparent;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_to_filters">← Назад к фильтрам</a></span>
+<span><a href="?action=update&site=<?=urlencode($currentSite)?>" style="padding:6px 16px;background:transparent;color:#00d4ff;border:1px solid #00d4ff;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_to_filters">← Назад к фильтрам</a></span>
 </div>
 <?php if ($totalFiles2 === 0): ?>
 <div class="card"><div class="card-body empty-msg" data-i18n="no_files_found">Нет файлов, соответствующих критериям поиска</div></div>
@@ -802,6 +1020,7 @@ h1{font-size:22px;color:#00d4ff;margin-bottom:5px}.meta-info{color:#888;font-siz
   <input type="hidden" name="action" value="update">
   <input type="hidden" name="confirm" value="1">
   <input type="hidden" name="step" value="3">
+  <input type="hidden" name="site" value="<?=htmlspecialchars($_GET['site']??$currentSite)?>">
   <input type="hidden" name="batch" value="<?=(int)($_GET['batch']??$SEND_BATCH_LIMIT??200)?>">
   <input type="hidden" name="export_mode" value="<?=htmlspecialchars($_GET['export_mode']??'all')?>">
   <?php if (isset($_GET['dry-run'])): ?><input type="hidden" name="dry-run" value="1"><?php endif; ?>
@@ -814,6 +1033,12 @@ h1{font-size:22px;color:#00d4ff;margin-bottom:5px}.meta-info{color:#888;font-siz
   <input type="hidden" name="export_article_id" value="<?=(int)(!empty($_GET['export_article_id'])?$_GET['export_article_id']:0)?>">
   <input type="hidden" name="export_category_id" value="<?=(int)(!empty($_GET['export_category_id'])?$_GET['export_category_id']:0)?>">
   <input type="hidden" name="export_category_name" value="<?=(int)(empty($_GET['export_category_name'])?1:$_GET['export_category_name'])?>">
+  <?php /* forward export fix checkboxes */ ?>
+  <input type="hidden" name="export_ref_lang" value="<?=htmlspecialchars($_GET['export_ref_lang']??$REFERENCE_LANG)?>">
+  <input type="hidden" name="export_fix_multilangid" value="<?=(int)(!empty($_GET['export_fix_multilangid'])?1:0)?>">
+  <input type="hidden" name="export_fix_planned" value="<?=(int)(!empty($_GET['export_fix_planned'])?1:0)?>">
+  <input type="hidden" name="export_fix_status" value="<?=(int)(!empty($_GET['export_fix_status'])?1:0)?>">
+  <input type="hidden" name="export_fix_datestamp" value="<?=(int)(!empty($_GET['export_fix_datestamp'])?1:0)?>">
   <div class="toolbar">
     <button type="button" class="btn btn-sm select-all" onclick="document.querySelectorAll('.file-chk').forEach(function(c){c.checked=true;})" data-i18n="select_all">☑ ВЫДЕЛИТЬ ВСЕ</button>
     <button type="button" class="btn btn-sm deselect-all" onclick="document.querySelectorAll('.file-chk').forEach(function(c){c.checked=false;})" data-i18n="deselect_all">☐ СНЯТЬ ВСЕ</button>
@@ -856,7 +1081,7 @@ h1{font-size:22px;color:#00d4ff;margin-bottom:5px}.meta-info{color:#888;font-siz
   <?php endforeach; ?>
   <div style="margin-top:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <button type="submit" class="btn btn-success" data-i18n="export_selected">📤 ЭКСПОРТИРОВАТЬ ВЫДЕЛЕННЫЕ</button>
-    <a href="?action=update" style="padding:7px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_to_filters">← Назад к фильтрам</a>
+    <a href="?action=update&site=<?=urlencode($currentSite)?>" style="padding:7px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:4px;text-decoration:none;font-size:13px;" data-i18n="back_to_filters">← Назад к фильтрам</a>
   </div>
 </form>
 <?php endif; ?>
@@ -876,13 +1101,13 @@ if (isset($_GET['files']) && is_array($_GET['files'])) {
         if (file_exists($absPath)) $htmlFiles[] = $absPath;
     }
 } else {
-    $blogDir=__DIR__.DIRECTORY_SEPARATOR.'blog';
+    $blogDir=$BLOG_DIR;
     if(is_dir($blogDir)){$rdi=new RecursiveDirectoryIterator($blogDir,RecursiveDirectoryIterator::SKIP_DOTS);$rii=new RecursiveIteratorIterator($rdi);foreach($rii as $f){if($f->isFile()&&strtolower($f->getExtension())==='html')$htmlFiles[]=$f->getPathname();}sort($htmlFiles);}
     $htmlFiles=array_filter($htmlFiles,function($p){return!in_array(basename($p),['index.php','_setting_articles.inc']);});
     $htmlFiles=array_values($htmlFiles);
     if(!empty($_GET['lang'])){$_langFilter=$_GET['lang'];$htmlFiles=array_filter($htmlFiles,function($p)use($_langFilter){$h=@file_get_contents($p);if($h===false)return false;preg_match('/<meta\s+name=["\']lang["\']\s+content=["\'](.*?)["\']/is',$h,$m);return trim($m[1]??'')===$_langFilter;});$htmlFiles=array_values($htmlFiles);}
 }
-if(empty($htmlFiles)):?><h1 data-i18n="no_html_files">✕ Нет HTML-файлов</h1><p data-i18n="no_html_files_desc">В папке <code><?=htmlspecialchars(__DIR__.DIRECTORY_SEPARATOR.'blog')?></code> не найдено *.html</p>
+if(empty($htmlFiles)):?><h1 data-i18n="no_html_files">✕ Нет HTML-файлов</h1><p data-i18n="no_html_files_desc">В папке <code><?=htmlspecialchars($BLOG_DIR)?></code> не найдено *.html</p>
 <?php else:
 $articleIdx=0;$skippedCount=0;$success=0;$errors=0;$created=0;$updated=0;
 // Apply search filter as fallback (only if not from step 2 selection)
@@ -914,6 +1139,48 @@ if (isset($_GET['export_cats_configured'])) {
     $activeCategories = $exportCats; // empty = all allowed
 }
 $batchPayloads = []; $batchArticles = [];
+
+// === Export fix by reference (pre-scan) ===
+$expRefLang = $_GET['export_ref_lang'] ?? $REFERENCE_LANG;
+$expFixMultilangid = !empty($_GET['export_fix_multilangid']);
+$expFixPlanned = !empty($_GET['export_fix_planned']);
+$expFixStatus = !empty($_GET['export_fix_status']);
+$expFixDatestamp = !empty($_GET['export_fix_datestamp']);
+$fixFields = [];
+if ($expFixMultilangid) $fixFields[] = 'multilangid';
+if ($expFixPlanned) $fixFields[] = 'planned';
+if ($expFixStatus) $fixFields[] = 'status';
+if ($expFixDatestamp) $fixFields[] = 'datestamp';
+$fixMap = [];
+if (!empty($fixFields)) {
+    $fixScan = [];
+    foreach ($htmlFiles as $fp) {
+        $_h = @file_get_contents($fp);
+        if ($_h === false) continue;
+        $_m = extractAllMeta($_h);
+        $_slug = $_m['slug'] ?? '';
+        $_lang = $_m['language'] ?? 'ru';
+        if ($_slug === '') continue;
+        $fixScan[$_slug][] = ['file' => $fp, 'lang' => $_lang, 'meta' => $_m];
+    }
+    foreach ($fixScan as $_slug => $_arts) {
+        if (count($_arts) < 2) continue;
+        $_ref = null;
+        foreach ($_arts as $_a) { if ($_a['lang'] === $expRefLang) { $_ref = $_a; break; } }
+        if (!$_ref) continue;
+        foreach ($_arts as $_a) {
+            if ($_a['lang'] === $expRefLang) continue;
+            $_fixes = [];
+            foreach ($fixFields as $_f) {
+                $_old = (string)($_a['meta'][$_f] ?? '');
+                $_new = (string)($_ref['meta'][$_f] ?? '');
+                if ($_old !== $_new) $_fixes[$_f] = $_new;
+            }
+            if (!empty($_fixes)) $fixMap[$_a['file']] = $_fixes;
+        }
+    }
+}
+
 foreach($htmlFiles as $htmlFile):
 $relPath=str_replace(__DIR__.DIRECTORY_SEPARATOR,'',$htmlFile);$articleIdx++;
 $html=file_get_contents($htmlFile);$meta=extractAllMeta($html);
@@ -929,6 +1196,15 @@ $showPeriod=(int)($meta['show_period']??0);$schema=(int)($meta['schema']??6);$pl
 $rating=(int)($meta['rating']??0);$datestampStr=$meta['datestamp']??'';$tags=$meta['tags']??'';
 $articleId=(int)($meta['id']??0);
 $multilangid=$meta['multilangid']??'';
+// Apply export fix by reference (overrides from reference article)
+if (isset($fixMap[$htmlFile])) {
+    foreach ($fixMap[$htmlFile] as $_f => $_v) {
+        if ($_f === 'multilangid') $multilangid = $_v;
+        elseif ($_f === 'planned') $planned = (int)$_v;
+        elseif ($_f === 'status') $status = (int)$_v;
+        elseif ($_f === 'datestamp') $datestampStr = $_v;
+    }
+}
 $categoryAllowed=empty($activeCategories);
 if(!$categoryAllowed&&$catId>0&&isset($activeCategories[$catId])){$categoryAllowed=true;}
 if(!$categoryAllowed&&$catId===0&&$categoryName!==''){$f=array_search($categoryName,$activeCategories,true);if($f!==false){$categoryAllowed=true;}}
@@ -1132,7 +1408,7 @@ else:
 endif;
 endif; // batch request
 ?>
-<div class="footer"><span data-i18n="total_label">Итог:</span> <span data-i18n="processed">обработано</span> <strong><?=$articleIdx?></strong> | <span data-i18n="skipped">пропущено</span> <strong style="color:#888"><?=$skippedCount?></strong> | <span data-i18n="created">создано</span> <strong style="color:#4caf50"><?=$created?></strong> | <span data-i18n="updated">обновлено</span> <strong style="color:#00d4ff"><?=$updated?></strong> | <span data-i18n="errors">ошибок</span> <strong style="color:#f44336"><?=$errors?></strong><br><span data-i18n="completed_at">Завершено:</span> <?=date('Y-m-d H:i:s')?><br><br><a href="?action=update" style="padding:8px 18px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_to_settings">← Назад к настройкам</a> &nbsp; <a href="?" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_home">На главную</a></div>
+<div class="footer"><span data-i18n="total_label">Итог:</span> <span data-i18n="processed">обработано</span> <strong><?=$articleIdx?></strong> | <span data-i18n="skipped">пропущено</span> <strong style="color:#888"><?=$skippedCount?></strong> | <span data-i18n="created">создано</span> <strong style="color:#4caf50"><?=$created?></strong> | <span data-i18n="updated">обновлено</span> <strong style="color:#00d4ff"><?=$updated?></strong> | <span data-i18n="errors">ошибок</span> <strong style="color:#f44336"><?=$errors?></strong><br><span data-i18n="completed_at">Завершено:</span> <?=date('Y-m-d H:i:s')?><br><br><a href="?action=update&site=<?=urlencode($currentSite)?>" style="padding:8px 18px;background:#0f3460;color:#00d4ff;border:1px solid #00d4ff;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_to_settings">← Назад к настройкам</a> &nbsp; <a href="?site=<?=urlencode($currentSite)?>" style="padding:8px 18px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;text-decoration:none;font-size:13px;" data-i18n="back_home">На главную</a></div>
 <?php endif;?>
 <script>
 var _lang='ru';try{_lang=localStorage.getItem('boostore_lang')||navigator.language.slice(0,2);localStorage.setItem('boostore_lang',_lang);}catch(e){}
@@ -1153,32 +1429,67 @@ endif;
 // DASHBOARD — Главная страница управления
 // ===================================================================
 function saveConfigFromPost($post) {
-    $c = "<?php\n// ===================================================================\n// НАСТРОЙКИ ИМПОРТА/ЭКСПОРТА СТАТЕЙ (Blog Boostore.pro)\n// ===================================================================\n// Инструкция: https://boostore.pro/ru/docs/api-integration/#hotengine-CommerceAPI\n// ===================================================================\n\n";
-    $c .= "// Ключ доступа API (Consumer Secret)\n\$AUTH_KEY = ".var_export($post['AUTH_KEY']??'',true).";\n\n";
-    $c .= "// Домен сайта на платформе Boostore.pro\n\$API_DOMAIN = ".var_export($post['API_DOMAIN']??'site.boostore.pro',true).";\n";
-    $c .= "\$API_URL = 'https://' . \$API_DOMAIN . '/api/commerce/blog/articles';\n\n";
-    $c .= "// Разрешенные категории (category_id => имя категории). Пусто = все\n\$ALLOWED_CATEGORIES = [\n";
-    $ids=$post['cat_id']??[];$names=$post['cat_name']??[];
-    for($i=0;$i<count($ids);$i++){$id=trim($ids[$i]);$nm=trim($names[$i]);if($id!==''||$nm!=='')$c.="    ".var_export((int)$id,true)." => ".var_export($nm,true).",\n";}
-    $c .= "];\n\n// === ПАРАМЕТРЫ СТРУКТУРЫ ПАПОК ===\n";
-    $c .= "\$PLANNED_SEPARATE_FOLDER = ".(isset($post['PLANNED_SEPARATE_FOLDER'])?'true':'false').";\n";
-    $c .= "\$CATEGORY_FOLDER = ".(isset($post['CATEGORY_FOLDER'])?'true':'false').";\n\n";
-    $c .= "// === НАСТРОЙКИ СТАТЕЙ ПРИ ПУБЛИКАЦИИ ===\n";
-    $c .= "\$STATUS_MODE = ".var_export($post['STATUS_MODE']??'',true).";\n";
-    $c .= "\$STATUS_OVERRIDE = ".(int)($post['STATUS_OVERRIDE']??1).";\n";
-    $c .= "\$DATE_MODE = ".var_export($post['DATE_MODE']??'',true).";\n";
-    $c .= "\$DATE_FIXED = ".var_export($post['DATE_FIXED']??'',true).";\n";
-    $c .= "\$DATE_OFFSET_BASE = ".var_export($post['DATE_OFFSET_BASE']??'',true).";\n";
-    $c .= "\$DATE_OFFSET_DAYS = ".(int)($post['DATE_OFFSET_DAYS']??1).";\n";
-    $c .= "\$OVERRIDE_PLANNED = ".var_export($post['OVERRIDE_PLANNED']??'',true).";\n\n";
-    $c .= "// Сколько статей загружать за один запрос при экспорте (макс 2000)\n\$PER_PAGE = ".(int)($post['PER_PAGE']??200).";\n\n";
-    $c .= "// Сколько статей отправлять за один раз при импорте\n\$SEND_BATCH_LIMIT = ".(int)($post['SEND_BATCH_LIMIT']??200).";\n\n";
-    $c .= "// Язык эталонной статьи для авто-исправления при экспорте\n\$REFERENCE_LANG = ".var_export($post['REFERENCE_LANG']??'ru',true).";\n\n";
-    $c .= "// Какие поля исправлять по RU-эталону при экспорте\n";
-    $c .= "\$FIX_MULTILANGID = ".(isset($post['FIX_MULTILANGID'])?'true':'false').";\n";
-    $c .= "\$FIX_PLANNED = ".(isset($post['FIX_PLANNED'])?'true':'false').";\n";
-    $c .= "\$FIX_STATUS = ".(isset($post['FIX_STATUS'])?'true':'false').";\n";
-    $c .= "\$FIX_DATESTAMP = ".(isset($post['FIX_DATESTAMP'])?'true':'false').";\n";
+    global $SITES, $currentSite;
+    $ts = $post['site'] ?? $currentSite;
+    if (!isset($SITES[$ts])) $SITES[$ts] = [];
+    // Merge key
+    $doms = $post['site_domain'] ?? [];
+    $keys = $post['site_key'] ?? [];
+    for ($i = 0; $i < count($doms); $i++) { $d = trim($doms[$i]); if ($d === '') continue; if (!isset($SITES[$d])) $SITES[$d] = []; $SITES[$d]['key'] = $keys[$i] ?? ''; }
+    // Per-site settings from form
+    $cids = $post['cat_id'] ?? []; $cnms = $post['cat_name'] ?? [];
+    $cats = [];
+    for ($i = 0; $i < count($cids); $i++) { $id = trim($cids[$i]); $nm = trim($cnms[$i]); if ($id !== '' || $nm !== '') $cats[(int)$id] = $nm; }
+    $SITES[$ts]['allowed_categories'] = $cats;
+    $SITES[$ts]['planned_separate_folder'] = isset($post['PLANNED_SEPARATE_FOLDER']);
+    $SITES[$ts]['category_folder'] = isset($post['CATEGORY_FOLDER']);
+    $SITES[$ts]['status_mode'] = $post['STATUS_MODE'] ?? '';
+    $SITES[$ts]['status_override'] = (int)($post['STATUS_OVERRIDE'] ?? 1);
+    $SITES[$ts]['date_mode'] = $post['DATE_MODE'] ?? '';
+    $SITES[$ts]['date_fixed'] = $post['DATE_FIXED'] ?? '';
+    $SITES[$ts]['date_offset_base'] = $post['DATE_OFFSET_BASE'] ?? '';
+    $SITES[$ts]['date_offset_days'] = (int)($post['DATE_OFFSET_DAYS'] ?? 1);
+    $SITES[$ts]['override_planned'] = $post['OVERRIDE_PLANNED'] ?? '';
+    $SITES[$ts]['export_article_id'] = isset($post['EXPORT_ARTICLE_ID']);
+    $SITES[$ts]['export_category_id'] = isset($post['EXPORT_CATEGORY_ID']);
+    $SITES[$ts]['export_category_name'] = !isset($post['EXPORT_CATEGORY_NAME']) || !empty($post['EXPORT_CATEGORY_NAME']);
+    $SITES[$ts]['per_page'] = (int)($post['PER_PAGE'] ?? 200);
+    $SITES[$ts]['send_batch_limit'] = (int)($post['SEND_BATCH_LIMIT'] ?? 200);
+    $SITES[$ts]['reference_lang'] = $post['REFERENCE_LANG'] ?? 'ru';
+    $SITES[$ts]['fix_multilangid'] = isset($post['FIX_MULTILANGID']);
+    $SITES[$ts]['fix_planned'] = isset($post['FIX_PLANNED']);
+    $SITES[$ts]['fix_status'] = isset($post['FIX_STATUS']);
+    $SITES[$ts]['fix_datestamp'] = isset($post['FIX_DATESTAMP']);
+    // Build config content
+    $c = "<?php\n// === per-site config ===\n\$SITES = [\n";
+    foreach ($SITES as $sd => $sc) {
+        $sk = var_export($sc['key'] ?? '', true);
+        $c .= "  ".var_export($sd, true)." => ['key' => $sk, 'allowed_categories' => ";
+        $acs = $sc['allowed_categories'] ?? [];
+        if (empty($acs)) { $c .= "[]"; }
+        else { $ca = []; foreach ($acs as $ci => $cn) { $ca[] = var_export($ci,true)."=>".var_export($cn,true); } $c .= "[".implode(",",$ca)."]"; }
+        $c .= ", 'planned_separate_folder' => ".($sc['planned_separate_folder']??false?'true':'false');
+        $c .= ", 'category_folder' => ".($sc['category_folder']??false?'true':'false');
+        $c .= ", 'status_mode' => ".var_export($sc['status_mode']??'',true);
+        $c .= ", 'status_override' => ".(int)($sc['status_override']??1);
+        $c .= ", 'date_mode' => ".var_export($sc['date_mode']??'',true);
+        $c .= ", 'date_fixed' => ".var_export($sc['date_fixed']??'',true);
+        $c .= ", 'date_offset_base' => ".var_export($sc['date_offset_base']??'',true);
+        $c .= ", 'date_offset_days' => ".(int)($sc['date_offset_days']??1);
+        $c .= ", 'override_planned' => ".var_export($sc['override_planned']??'',true);
+        $c .= ", 'export_article_id' => ".($sc['export_article_id']??false?'true':'false');
+        $c .= ", 'export_category_id' => ".($sc['export_category_id']??false?'true':'false');
+        $c .= ", 'export_category_name' => ".($sc['export_category_name']??true?'true':'false');
+        $c .= ", 'per_page' => ".(int)($sc['per_page']??200);
+        $c .= ", 'send_batch_limit' => ".(int)($sc['send_batch_limit']??200);
+        $c .= ", 'reference_lang' => ".var_export($sc['reference_lang']??'ru',true);
+        $c .= ", 'fix_multilangid' => ".($sc['fix_multilangid']??false?'true':'false');
+        $c .= ", 'fix_planned' => ".($sc['fix_planned']??false?'true':'false');
+        $c .= ", 'fix_status' => ".($sc['fix_status']??false?'true':'false');
+        $c .= ", 'fix_datestamp' => ".($sc['fix_datestamp']??false?'true':'false');
+        $c .= "],\n";
+    }
+    $c .= "];\n";
     file_put_contents(__DIR__.'/_setting_articles.inc', $c);
 }
 $saveSuccess = false;
@@ -1186,6 +1497,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_config'])) {
     saveConfigFromPost($_POST);
     $saveSuccess = true;
     require __DIR__.'/_setting_articles.inc';
+    $currentSite = $_POST['site'] ?? (!empty($_GET['site']) ? $_GET['site'] : (array_keys($SITES)[0] ?? ''));
+    $siteCfg = $SITES[$currentSite] ?? [];
+    $ALLOWED_CATEGORIES  = $siteCfg['allowed_categories'] ?? [];
+    $PLANNED_SEPARATE_FOLDER = $siteCfg['planned_separate_folder'] ?? false;
+    $CATEGORY_FOLDER     = $siteCfg['category_folder'] ?? false;
+    $STATUS_MODE         = $siteCfg['status_mode'] ?? '';
+    $STATUS_OVERRIDE     = $siteCfg['status_override'] ?? 1;
+    $DATE_MODE           = $siteCfg['date_mode'] ?? '';
+    $DATE_FIXED          = $siteCfg['date_fixed'] ?? '';
+    $DATE_OFFSET_BASE    = $siteCfg['date_offset_base'] ?? '';
+    $DATE_OFFSET_DAYS    = $siteCfg['date_offset_days'] ?? 1;
+    $OVERRIDE_PLANNED    = $siteCfg['override_planned'] ?? '';
+    $EXPORT_ARTICLE_ID   = $siteCfg['export_article_id'] ?? false;
+    $EXPORT_CATEGORY_ID  = $siteCfg['export_category_id'] ?? false;
+    $EXPORT_CATEGORY_NAME = $siteCfg['export_category_name'] ?? true;
+    $PER_PAGE            = $siteCfg['per_page'] ?? 200;
+    $SEND_BATCH_LIMIT    = $siteCfg['send_batch_limit'] ?? 200;
+    $REFERENCE_LANG      = $siteCfg['reference_lang'] ?? 'ru';
+    $FIX_MULTILANGID     = $siteCfg['fix_multilangid'] ?? false;
+    $FIX_PLANNED         = $siteCfg['fix_planned'] ?? false;
+    $FIX_STATUS          = $siteCfg['fix_status'] ?? false;
+    $FIX_DATESTAMP       = $siteCfg['fix_datestamp'] ?? false;
+    $AUTH_KEY = $SITES[$currentSite]['key'] ?? '';
+    $apiKeyMissing = empty($AUTH_KEY);
 }
 ?><!DOCTYPE html>
 <html lang="ru">
@@ -1226,7 +1561,7 @@ details.card>summary::-webkit-details-marker{display:none}details.card>summary .
 <?php endif; ?>
 <?php if ($saveSuccess): ?><div class="success-msg">✓ <span data-i18n="saved">Конфигурация сохранена</span></div><?php endif; ?>
 <div style="background:#0f3460;border:1px solid #00d4ff;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:14px;color:#e0e0e0;" data-i18n="plaque">
-<strong>Boostore.pro</strong> — Скрипты для <strong>экспорта</strong> (скачивания) и <strong>импорта</strong> (отправки) статей блога через Commerce API. Домен: <strong><?=htmlspecialchars($API_DOMAIN)?></strong>
+<strong>Boostore.pro</strong> — Скрипты для <strong>экспорта</strong> (скачивания) и <strong>импорта</strong> (отправки) статей блога через Commerce API. Сайт: <strong><?=htmlspecialchars($currentSite)?></strong>
 </div>
 <details class="card"><summary><span data-i18n="instr_title">📖 Инструкция</span> <span class="arrow">▶</span></summary><div class="card-body">
 <p data-i18n="instr_intro">Все настройки — в разделе «Конфигурация» ниже. Если список категорий пуст — обрабатываются все категории.</p>
@@ -1235,27 +1570,39 @@ details.card>summary::-webkit-details-marker{display:none}details.card>summary .
 <li data-i18n="step1">Настройте <strong>ключ доступа</strong> в разделе «Настройка → Магазин → Доступ к статистике продаж»</li>
 <li data-i18n="step2">Укажите ключ и URL вашего сайта в <strong>конфигурации</strong> ниже</li>
 <li data-i18n="step3">Выберите категории статей для работы</li>
-<li data-i18n="step4">Нажмите <strong>"НАЧАТЬ ИМПОРТ"</strong> — статьи скачаются в папку <code>blog/</code></li>
+<li data-i18n="step4">Нажмите <strong>"НАЧАТЬ ИМПОРТ"</strong> — статьи скачаются в папку <code><?=htmlspecialchars($currentSite)?>/blog/</code></li>
 <li data-i18n="step5">При получении статьи одной группы (одинаковый slug) сверяются с эталонной версией (выбранный язык в конфигурации). <code>multilangid</code>, <code>planned</code>, <code>status</code>, <code>datestamp</code> приводятся к эталону</li>
-<li data-i18n="step6">Отредактируйте HTML-файлы в <code>blog/</code> при необходимости</li>
+<li data-i18n="step6">Отредактируйте HTML-файлы в <code><?=htmlspecialchars($currentSite)?>/blog/</code> при необходимости</li>
 <li data-i18n="step7">Нажмите <strong>"НАЧАТЬ ЭКСПОРТ"</strong> — изменения отправятся на сайт</li>
 </ol>
 <h3 data-i18n="file_naming">Именование файлов</h3><p data-i18n="file_naming_desc">Шаблон: <code>{id}-{name}-{language}.html</code>. Пример: <code>123-moya-statya-ru.html</code></p>
 <h3 data-i18n="file_format">Формат файла</h3><p data-i18n="file_format_desc">Мета-данные в <code>&lt;meta name="..." content="..."&gt;</code> передают настройки статьи: slug, заголовок, язык, теги, дату публикации, статус доступа, категорию, planned, описание и системные параметры. Содержимое статьи — после <code>&lt;!-- РАЗДЕЛИТЕЛЬ СТАТЬЯ НИЖЕ --&gt;</code></p>
 </div></details>
 <div class="card"><div class="card-header" data-i18n="actions_title">⚡ Действия</div><div class="card-body">
-<div class="btn-group"><a href="?action=get" class="btn btn-primary" data-i18n="btn_get">📥 НАЧАТЬ ИМПОРТ</a>
-<a href="?action=update" class="btn btn-success" data-i18n="btn_update">📤 НАЧАТЬ ЭКСПОРТ</a>
-<a href="?action=update&dry-run" class="btn btn-warning" data-i18n="btn_dryrun">🔍 Тест (сухая отправка)</a></div>
+<div class="btn-group"><a href="?action=get&site=<?=urlencode($currentSite)?>" class="btn btn-primary" data-i18n="btn_get">📥 НАЧАТЬ ИМПОРТ</a>
+<a href="?action=update&site=<?=urlencode($currentSite)?>" class="btn btn-success" data-i18n="btn_update">📤 НАЧАТЬ ЭКСПОРТ</a>
+<a href="?action=update&dry-run&site=<?=urlencode($currentSite)?>" class="btn btn-warning" data-i18n="btn_dryrun">🔍 Тест (сухая отправка)</a></div>
 <div style="font-size:12px;color:#888;margin-top:8px;" data-i18n="dryrun_desc">Режим «тест» — проверяет какие статьи будут отправлены, но сами запросы к API не выполняются.</div>
 </div></div>
+<?php if (!empty($_GET['added']) && $_GET['added'] === '1'): ?>
+<div style="background:#1a3a1a;border:1px solid #4caf50;border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#a5d6a7;">
+  ✅ Сайт <strong><?=htmlspecialchars($currentSite)?></strong> добавлен. Укажите API-ключ в настройках ниже и нажмите «Сохранить».
+</div>
+<?php endif; ?>
 <details class="card"><summary><span data-i18n="config_title">⚙ Конфигурация</span> <span class="arrow">▶</span></summary><div class="card-body">
 <form method="post">
+<input type="hidden" name="site" value="<?=htmlspecialchars($currentSite)?>">
 <div style="background:#1a3a1a;border:1px solid #ff9800;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;" data-i18n="api_note">
-⚠ Для работы API обязательно нужно открывать его с использованием адреса вашего сайта, созданного на платформе Boostore.pro. Измените домен в URL ниже на ваш.
+⚠ Ключ доступа для текущего сайта <strong><?=htmlspecialchars($currentSite)?></strong>. Чтобы добавить новый сайт — используйте селектор сайтов вверху → <strong>«+ Добавить сайт»</strong>.
 </div>
-<div class="form-row"><div class="field"><label data-i18n="lbl_url">🌐 Домен сайта (например: site.boostore.pro)</label><input type="text" name="API_DOMAIN" value="<?=htmlspecialchars($API_DOMAIN)?>"></div></div>
-<div class="form-row"><div class="field"><label data-i18n="lbl_key">🔑 Ключ доступа (Consumer Secret)</label><input type="text" name="AUTH_KEY" value="<?=htmlspecialchars($AUTH_KEY)?>"></div></div>
+<input type="hidden" name="site_domain[]" value="<?=htmlspecialchars($currentSite)?>">
+<div class="form-row"><div class="field">
+  <label data-i18n="lbl_key">🔑 Ключ доступа (Consumer Secret)</label>
+  <input type="text" name="site_key[]" value="<?=htmlspecialchars($AUTH_KEY)?>" style="font-family:monospace;">
+</div></div>
+<div style="margin-top:8px;">
+  <a href="?action=delete_site&site=<?=urlencode($currentSite)?>" onclick="if(!confirm('Удалить настройки сайта «<?=htmlspecialchars($currentSite)?>»? Это действие нельзя отменить.'))return false;" style="color:#f44336;font-size:12px;text-decoration:none;border:1px solid #f44336;padding:4px 10px;border-radius:4px;display:inline-block;">🗑 Удалить настройки сайта</a>
+</div>
 <hr><h3 data-i18n="cat_title">📂 Разрешённые категории</h3><p style="color:#888;font-size:12px;margin-bottom:10px;" data-i18n="cat_desc">Только статьи этих категорий будут получены и отправлены. Если список пуст — обрабатываются все.</p>
 <div style="display:grid;grid-template-columns:100px 1fr 40px;gap:8px;align-items:center;margin-bottom:6px;font-size:12px;color:#888;"><span data-i18n="cat_id_header">ID</span><span data-i18n="cat_name_header">Имя категории</span><span></span></div>
 <div id="cat-container"><?php $i=0;foreach($ALLOWED_CATEGORIES as $cid=>$cname):?>
@@ -1771,6 +2118,7 @@ function applyLang(lang) {
   applyLang(lang);
 })();
 function addCatRow(){var d=document.getElementById('cat-container'),div=document.createElement('div');div.className='form-row cat-row';div.innerHTML='<div class="field-sm"><input type="text" name="cat_id[]" value="" placeholder="ID" data-i18n-placeholder="cat_id_placeholder"></div><div class="field"><input type="text" name="cat_name[]" value="" placeholder="name" data-i18n-placeholder="cat_name_placeholder"></div><div style="flex:0 0 40px;text-align:center;"><button type="button" class="btn btn-danger btn-sm" onclick="this.closest(\'.cat-row\').remove()">✕</button></div>';d.appendChild(div);}
+
 </script>
 </body>
 </html>
