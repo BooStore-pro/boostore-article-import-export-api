@@ -40,6 +40,7 @@ if (!file_exists($configFile)) {
         'fix_planned' => false,
         'fix_status' => false,
         'fix_datestamp' => false,
+        'import_only_named' => true,
     ],
 ];
 ";
@@ -94,6 +95,7 @@ $FIX_MULTILANGID     = $siteCfg['fix_multilangid'] ?? ($FIX_MULTILANGID ?? false
 $FIX_PLANNED         = $siteCfg['fix_planned'] ?? ($FIX_PLANNED ?? false);
 $FIX_STATUS          = $siteCfg['fix_status'] ?? ($FIX_STATUS ?? false);
 $FIX_DATESTAMP       = $siteCfg['fix_datestamp'] ?? ($FIX_DATESTAMP ?? false);
+$IMPORT_ONLY_NAMED   = $siteCfg['import_only_named'] ?? ($IMPORT_ONLY_NAMED ?? true);
 
 // Site directory (parent folder named after domain)
 $SITE_DIR = __DIR__ . DIRECTORY_SEPARATOR . $currentSite;
@@ -136,6 +138,7 @@ function sitesExport($sites) {
         $c .= "        'fix_planned' => ".($sCfg['fix_planned'] ?? false ? 'true' : 'false').",\n";
         $c .= "        'fix_status' => ".($sCfg['fix_status'] ?? false ? 'true' : 'false').",\n";
         $c .= "        'fix_datestamp' => ".($sCfg['fix_datestamp'] ?? false ? 'true' : 'false').",\n";
+        $c .= "        'import_only_named' => ".($sCfg['import_only_named'] ?? true ? 'true' : 'false').",\n";
         $c .= "    ],\n";
     }
     return $c . "]\n";
@@ -269,7 +272,8 @@ if (!isset($_GET['confirm'])): ?>
 <div class="field" style="max-width:120px;"><label data-i18n="id_max_label">ID <</label><input type="number" name="id_max" value="<?=htmlspecialchars($_GET['id_max']??'')?>" min="0" placeholder="5000" data-i18n-placeholder="id_max_placeholder"></div></div>
 <?php for($gsi=1;$gsi<count($getSearch);$gsi++):?><input type="hidden" name="search[]" value="<?=htmlspecialchars($getSearch[$gsi])?>"><?php endfor;?>
 <div style="margin-bottom:6px;"><label class="chk-label" style="display:flex!important;align-items:center;gap:6px;cursor:pointer;color:#e0e0e0;font-size:13px;padding:6px 10px;background:#0d1b2a;border:1px solid #0f3460;border-radius:6px;"><input type="checkbox" name="planned_folder" value="1"<?=$PLANNED_SEPARATE_FOLDER?' checked':''?>> <span data-i18n="folder_planned_chk">Разделять planned в <code>blog/planned/</code></span></label></div>
-<div style="margin-bottom:6px;"><label class="chk-label" style="display:flex!important;align-items:center;gap:6px;cursor:pointer;color:#e0e0e0;font-size:13px;padding:6px 10px;background:#0d1b2a;border:1px solid #0f3460;border-radius:6px;"><input type="checkbox" name="category_folder" value="1"<?=$CATEGORY_FOLDER?' checked':''?>> <span data-i18n="folder_category_chk">Разделять по папкам категорий</span></label></div></div>
+<div style="margin-bottom:6px;"><label class="chk-label" style="display:flex!important;align-items:center;gap:6px;cursor:pointer;color:#e0e0e0;font-size:13px;padding:6px 10px;background:#0d1b2a;border:1px solid #0f3460;border-radius:6px;"><input type="checkbox" name="category_folder" value="1"<?=$CATEGORY_FOLDER?' checked':''?>> <span data-i18n="folder_category_chk">Разделять по папкам категорий</span></label></div>
+<div style="margin-bottom:6px;"><label class="chk-label" style="display:flex!important;align-items:center;gap:6px;cursor:pointer;color:#e0e0e0;font-size:13px;padding:6px 10px;background:#0d1b2a;border:1px solid #0f3460;border-radius:6px;"><input type="hidden" name="import_only_named" value="0"><input type="checkbox" name="import_only_named" value="1"<?=(isset($_GET['import_only_named'])?!empty($_GET['import_only_named']):($IMPORT_ONLY_NAMED ?? true))?' checked':''?>> <span data-i18n="import_only_named">Только с именем (пропускать без name)</span></label></div></div>
 <div class="card">
 <label style="color:#888;font-size:13px;display:block;margin-bottom:6px;" data-i18n="search_import">Поиск по имени (slug)</label>
 <div id="search-fields"><input type="text" name="search[]" value="<?=htmlspecialchars($getSearch ? $getSearch[0] : '')?>" placeholder="часть имени, например: shoes" data-i18n-placeholder="search_placeholder" style="margin-bottom:4px;padding:7px 10px;border:1px solid #0f3460;border-radius:5px;background:#0d1b2a;color:#e0e0e0;font-size:13px;width:100%;box-sizing:border-box;"></div>
@@ -455,6 +459,9 @@ $slug = $a['slug'] ?? $name; $language = $a['language'] ?? 'ru';
 // Strip language suffix from name/slug if present (e.g., "slug-ua" → "slug")
 $name = preg_replace('/-(ua|pl|en|ru)$/i', '', $name);
 $slug = preg_replace('/-(ua|pl|en|ru)$/i', '', $slug);
+// Skip articles without name if import_only_named is enabled
+$importOnlyNamed = isset($_GET['import_only_named']) ? !empty($_GET['import_only_named']) : ($IMPORT_ONLY_NAMED ?? true);
+if ($importOnlyNamed && trim($name) === '') { $skipped++; continue; }
         $title = $a['title'] ?? ''; $metaTitle = $a['meta_title'] ?? '';
         $metaDesc = $a['meta_description'] ?? ''; $metaKeywords = $a['meta_keywords'] ?? '';
         $description = $a['description'] ?? ''; $shortDesc = $a['short_description'] ?? '';
@@ -467,6 +474,17 @@ $slug = preg_replace('/-(ua|pl|en|ru)$/i', '', $slug);
         $showPeriod = (int)($a['show_period']??0); $schema = (int)($a['schema']??6);
         $planned = (int)($a['planned']??0); $rating = (int)($a['rating']??0);
         $datestamp = $a['datestamp']??''; $dateLastedit = $a['date_lastedit']??'';
+        // Randomize time if datestamp has 00:00 (midnight) — natural-looking publication schedule between 06:00-23:00
+        if ($datestamp !== '' && $datestamp !== null) {
+            $randSec = 21600 + ((hexdec(substr(md5($slug),0,7)) % 61200));
+            if (ctype_digit((string)$datestamp)) {
+                $dt = (int)$datestamp;
+                if ($dt % 86400 === 0) $datestamp = $dt + $randSec;
+            } elseif (preg_match('/^\d{4}-\d{2}-\d{2}([ T]00:00(:00)?)?$/', $datestamp)) {
+                $baseDate = substr($datestamp, 0, 10);
+                $datestamp = $baseDate . ' ' . gmdate('H:i:s', $randSec);
+            }
+        }
         $multilangid = $a['multilangid']??''; $tags = $a['tags']??'';
         $subDir = '';
         if ($PLANNED_SEPARATE_FOLDER && $planned) $subDir = 'planned'.DIRECTORY_SEPARATOR;
@@ -1460,6 +1478,7 @@ function saveConfigFromPost($post) {
     $SITES[$ts]['fix_planned'] = isset($post['FIX_PLANNED']);
     $SITES[$ts]['fix_status'] = isset($post['FIX_STATUS']);
     $SITES[$ts]['fix_datestamp'] = isset($post['FIX_DATESTAMP']);
+    $SITES[$ts]['import_only_named'] = !isset($post['IMPORT_ONLY_NAMED']) || !empty($post['IMPORT_ONLY_NAMED']);
     // Build config content
     $c = "<?php\n// === per-site config ===\n\$SITES = [\n";
     foreach ($SITES as $sd => $sc) {
@@ -1487,6 +1506,7 @@ function saveConfigFromPost($post) {
         $c .= ", 'fix_planned' => ".($sc['fix_planned']??false?'true':'false');
         $c .= ", 'fix_status' => ".($sc['fix_status']??false?'true':'false');
         $c .= ", 'fix_datestamp' => ".($sc['fix_datestamp']??false?'true':'false');
+        $c .= ", 'import_only_named' => ".($sc['import_only_named']??true?'true':'false');
         $c .= "],\n";
     }
     $c .= "];\n";
@@ -1519,6 +1539,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_config'])) {
     $FIX_PLANNED         = $siteCfg['fix_planned'] ?? false;
     $FIX_STATUS          = $siteCfg['fix_status'] ?? false;
     $FIX_DATESTAMP       = $siteCfg['fix_datestamp'] ?? false;
+    $IMPORT_ONLY_NAMED   = $siteCfg['import_only_named'] ?? true;
     $AUTH_KEY = $SITES[$currentSite]['key'] ?? '';
     $apiKeyMissing = empty($AUTH_KEY);
 }
@@ -1616,6 +1637,7 @@ details.card>summary::-webkit-details-marker{display:none}details.card>summary .
 <h3 style="margin:10px 0 8px;font-size:14px;color:#888;" data-i18n="folder_structure">📁 Структура папок</h3>
 <div class="form-check"><input type="checkbox" name="PLANNED_SEPARATE_FOLDER" id="pf" value="1"<?=$PLANNED_SEPARATE_FOLDER?' checked':''?>><label for="pf" style="display:inline;margin:0;" data-i18n="folder_planned">Разделять planned в <code>blog/planned/</code></label></div>
 <div class="form-check"><input type="checkbox" name="CATEGORY_FOLDER" id="cf" value="1"<?=$CATEGORY_FOLDER?' checked':''?>><label for="cf" style="display:inline;margin:0;" data-i18n="folder_category">Разделять по папкам категорий</label></div>
+<div class="form-check"><input type="hidden" name="IMPORT_ONLY_NAMED" value="0"><input type="checkbox" name="IMPORT_ONLY_NAMED" id="ion" value="1"<?=$IMPORT_ONLY_NAMED?' checked':''?>><label for="ion" style="display:inline;margin:0;" data-i18n="import_only_named">Только с именем (пропускать без name)</label></div>
 <h3 style="margin:12px 0 8px;font-size:14px;color:#888;" data-i18n="articles_count_title">📥 Количество статей</h3>
 <div class="form-row"><div class="field" style="max-width:200px;">
 <label data-i18n="per_page_label">Статей за запрос (per_page)</label>
@@ -1822,6 +1844,7 @@ var i18n = {
     fix_planned:'planned',
     fix_status:'status',
     fix_datestamp:'datestamp',
+    import_only_named:'Только с именем',
     dry_run_label:'Dry run',
     all_languages:'все',
     lang_ru:'Русский',
@@ -1946,6 +1969,7 @@ var i18n = {
     fix_planned:'planned',
     fix_status:'status',
     fix_datestamp:'datestamp',
+    import_only_named:'Named only',
     dry_run_label:'Dry run',
     all_languages:'all',
     lang_ru:'Russian',
@@ -2070,6 +2094,7 @@ var i18n = {
     fix_planned:'planned',
     fix_status:'status',
     fix_datestamp:'datestamp',
+    import_only_named:'Тільки з іменем',
     dry_run_label:'Dry run',
     all_languages:'всі',
     lang_ru:'Російська',
